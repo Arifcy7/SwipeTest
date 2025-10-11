@@ -11,26 +11,33 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
-import androidx.hilt.navigation.compose.hiltViewModel
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun AddProductSheet(viewModel: ProductViewModel = hiltViewModel()) {
+fun AddProductSheet(
+    productName: String,
+    productType: String,
+    price: String,
+    tax: String,
+    imageUri: Uri?,
+    isSubmitting: Boolean,
+    onProductNameChange: (String) -> Unit,
+    onProductTypeChange: (String) -> Unit,
+    onPriceChange: (String) -> Unit,
+    onTaxChange: (String) -> Unit,
+    onImageUriChange: (Uri?) -> Unit,
+    onAddProductClick: () -> Unit,
+    onDismiss: () -> Unit
+) {
     val productTypes = listOf("Product", "Service")
-    var productName by remember { mutableStateOf("") }
-    var productType by remember { mutableStateOf(productTypes[0]) }
-    var price by remember { mutableStateOf("") }
-    var tax by remember { mutableStateOf("") }
-    var imageUri by remember { mutableStateOf<Uri?>(null) }
-    val isSubmitting by viewModel.isSubmitting.collectAsState()
+    var dropdownExpanded by remember { mutableStateOf(false) }
 
     val imagePickerLauncher = rememberLauncherForActivityResult(
-        contract = ActivityResultContracts.GetContent())
-    { uri: Uri? ->
-        imageUri = uri
-    }
+        contract = ActivityResultContracts.GetContent(),
+        onResult = { uri: Uri? -> onImageUriChange(uri) }
+    )
 
-    ModalBottomSheet(onDismissRequest = { /* TODO: Dismiss sheet */ }) {
+    ModalBottomSheet(onDismissRequest = onDismiss) {
         Column(
             modifier = Modifier
                 .padding(16.dp)
@@ -42,26 +49,30 @@ fun AddProductSheet(viewModel: ProductViewModel = hiltViewModel()) {
 
             OutlinedTextField(
                 value = productName,
-                onValueChange = { productName = it },
+                onValueChange = onProductNameChange,
                 label = { Text("Product Name") },
                 modifier = Modifier.fillMaxWidth()
             )
             Spacer(modifier = Modifier.height(8.dp))
 
-            ExposedDropdownMenuBox(expanded = false, onExpandedChange = {}) {
+            ExposedDropdownMenuBox(expanded = dropdownExpanded, onExpandedChange = { dropdownExpanded = !dropdownExpanded }) {
                 OutlinedTextField(
                     value = productType,
                     onValueChange = {},
                     label = { Text("Product Type") },
                     readOnly = true,
-                    trailingIcon = {
-                        ExposedDropdownMenuDefaults.TrailingIcon(expanded = false)
-                    },
+                    trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = dropdownExpanded) },
                     modifier = Modifier.menuAnchor().fillMaxWidth()
                 )
-                ExposedDropdownMenu(expanded = false, onDismissRequest = { }) {
+                ExposedDropdownMenu(expanded = dropdownExpanded, onDismissRequest = { dropdownExpanded = false }) {
                     productTypes.forEach { type ->
-                        DropdownMenuItem(text = { Text(type) }, onClick = { productType = type })
+                        DropdownMenuItem(
+                            text = { Text(type) },
+                            onClick = {
+                                onProductTypeChange(type)
+                                dropdownExpanded = false
+                            }
+                        )
                     }
                 }
             }
@@ -69,7 +80,7 @@ fun AddProductSheet(viewModel: ProductViewModel = hiltViewModel()) {
 
             OutlinedTextField(
                 value = price,
-                onValueChange = { price = it },
+                onValueChange = onPriceChange,
                 label = { Text("Selling Price") },
                 keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
                 modifier = Modifier.fillMaxWidth()
@@ -78,7 +89,7 @@ fun AddProductSheet(viewModel: ProductViewModel = hiltViewModel()) {
 
             OutlinedTextField(
                 value = tax,
-                onValueChange = { tax = it },
+                onValueChange = onTaxChange,
                 label = { Text("Tax Rate") },
                 keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
                 modifier = Modifier.fillMaxWidth()
@@ -86,14 +97,12 @@ fun AddProductSheet(viewModel: ProductViewModel = hiltViewModel()) {
             Spacer(modifier = Modifier.height(16.dp))
 
             Button(onClick = { imagePickerLauncher.launch("image/*") }) {
-                Text("Select Image")
+                Text(if (imageUri != null) "Change Image" else "Select Image")
             }
             Spacer(modifier = Modifier.height(16.dp))
 
             Button(
-                onClick = {
-                    viewModel.addProduct(productName, productType, price, tax, imageUri)
-                },
+                onClick = onAddProductClick,
                 enabled = !isSubmitting
             ) {
                 if (isSubmitting) {

@@ -22,6 +22,7 @@ class ProductViewModel @Inject constructor(
     private val application: Application
 ) : ViewModel() {
 
+    // Product List State
     private val _products = MutableStateFlow<List<Product>>(emptyList())
     val products = _products.asStateFlow()
 
@@ -34,6 +35,23 @@ class ProductViewModel @Inject constructor(
     private val _error = MutableStateFlow<String?>(null)
     val error = _error.asStateFlow()
 
+    // Add Product Form State
+    private val _productName = MutableStateFlow("")
+    val productName = _productName.asStateFlow()
+
+    private val _productType = MutableStateFlow("Product")
+    val productType = _productType.asStateFlow()
+
+    private val _price = MutableStateFlow("")
+    val price = _price.asStateFlow()
+
+    private val _tax = MutableStateFlow("")
+    val tax = _tax.asStateFlow()
+
+    private val _imageUri = MutableStateFlow<Uri?>(null)
+    val imageUri = _imageUri.asStateFlow()
+
+    // Add Product Action State
     private val _isSubmitting = MutableStateFlow(false)
     val isSubmitting = _isSubmitting.asStateFlow()
 
@@ -51,6 +69,26 @@ class ProductViewModel @Inject constructor(
         _searchQuery.value = query
     }
 
+    fun onProductNameChange(name: String) {
+        _productName.value = name
+    }
+
+    fun onProductTypeChange(type: String) {
+        _productType.value = type
+    }
+
+    fun onPriceChange(price: String) {
+        _price.value = price
+    }
+
+    fun onTaxChange(tax: String) {
+        _tax.value = tax
+    }
+
+    fun onImageUriChange(uri: Uri?) {
+        _imageUri.value = uri
+    }
+
     fun getProducts() {
         viewModelScope.launch {
             _isLoading.value = true
@@ -66,9 +104,9 @@ class ProductViewModel @Inject constructor(
         }
     }
 
-    fun addProduct(productName: String, productType: String, price: String, tax: String, imageUri: Uri?) {
-        if (productName.isBlank() || price.isBlank() || tax.isBlank()) {
-            _addError.value = "All fields must be filled"
+    fun addProduct() {
+        if (_productName.value.isBlank() || _price.value.isBlank() || _tax.value.isBlank()) {
+            _addError.value = "Product name, price, and tax cannot be empty."
             return
         }
 
@@ -77,12 +115,12 @@ class ProductViewModel @Inject constructor(
             _addError.value = null
             _addSuccess.value = false
             try {
-                val nameBody = productName.toRequestBody("text/plain".toMediaTypeOrNull())
-                val typeBody = productType.toRequestBody("text/plain".toMediaTypeOrNull())
-                val priceBody = price.toRequestBody("text/plain".toMediaTypeOrNull())
-                val taxBody = tax.toRequestBody("text/plain".toMediaTypeOrNull())
+                val nameBody = _productName.value.toRequestBody("text/plain".toMediaTypeOrNull())
+                val typeBody = _productType.value.toRequestBody("text/plain".toMediaTypeOrNull())
+                val priceBody = _price.value.toRequestBody("text/plain".toMediaTypeOrNull())
+                val taxBody = _tax.value.toRequestBody("text/plain".toMediaTypeOrNull())
 
-                val imagePart = imageUri?.let { uri ->
+                val imagePart = _imageUri.value?.let { uri ->
                     application.contentResolver.openInputStream(uri)?.use { inputStream ->
                         val imageBytes = inputStream.readBytes()
                         val requestBody = imageBytes.toRequestBody("image/*".toMediaTypeOrNull())
@@ -109,5 +147,10 @@ class ProductViewModel @Inject constructor(
     fun resetAddState() {
         _addSuccess.value = false
         _addError.value = null
+        _productName.value = ""
+        _productType.value = "Product"
+        _price.value = ""
+        _tax.value = ""
+        _imageUri.value = null
     }
 }
