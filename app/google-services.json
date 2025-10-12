@@ -1,0 +1,30 @@
+{
+  "project_info": {
+    "project_number": "184675413101",
+    "firebase_url": "https://manage-gym-default-rtdb.firebaseio.com",
+    "project_id": "manage-gym",
+    "storage_bucket": "manage-gym.appspot.com"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:184675413101:android:7d05d46321d2ae06202364",
+        "android_client_info": {
+          "package_name": "com.si.swipe_test"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyA81lUVjnY6BqBrU6Z5IOFkCnX2NZIAyxA"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
