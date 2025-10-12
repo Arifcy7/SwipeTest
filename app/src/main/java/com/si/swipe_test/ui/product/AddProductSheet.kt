@@ -28,26 +28,24 @@ import coil3.compose.AsyncImage
 import coil3.request.ImageRequest
 import coil3.request.crossfade
 import com.si.swipe_test.R
+import com.si.swipe_test.model.ProductFormData
+
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun AddProductSheet(
-    productName: String,
-    productType: String,
-    price: String,
-    tax: String,
-    imageUri: Uri?,
+    formData: ProductFormData,
     isSubmitting: Boolean,
-    onProductNameChange: (String) -> Unit,
-    onProductTypeChange: (String) -> Unit,
-    onPriceChange: (String) -> Unit,
-    onTaxChange: (String) -> Unit,
-    onImageUriChange: (Uri?) -> Unit,
+    onFormChange: (ProductFormData) -> Unit,
     onAddProductClick: () -> Unit,
     onDismiss: () -> Unit
 ) {
+    val sheetState = rememberModalBottomSheetState(
+        skipPartiallyExpanded = true
+    )
     ModalBottomSheet(
         onDismissRequest = onDismiss,
+        sheetState = sheetState,
        // windowInsets = WindowInsets.ime
     ) {
         Column(
@@ -63,17 +61,17 @@ fun AddProductSheet(
                 modifier = Modifier.align(Alignment.CenterHorizontally)
             )
 
-            ImagePicker(imageUri = imageUri, onImageUriChange = onImageUriChange)
+            ImagePicker(imageUri = formData.imageUri, onImageUriChange = { onFormChange(formData.copy(imageUri = it)) })
 
             ProductDetailsForm(
-                productName = productName,
-                productType = productType,
-                price = price,
-                tax = tax,
-                onProductNameChange = onProductNameChange,
-                onProductTypeChange = onProductTypeChange,
-                onPriceChange = onPriceChange,
-                onTaxChange = onTaxChange
+                productName = formData.productName,
+                productType = formData.productType,
+                price = formData.price,
+                tax = formData.tax,
+                onProductNameChange = { onFormChange(formData.copy(productName = it)) },
+                onProductTypeChange = { onFormChange(formData.copy(productType = it)) },
+                onPriceChange = { onFormChange(formData.copy(price = it)) },
+                onTaxChange = { onFormChange(formData.copy(tax = it)) }
             )
 
             Button(

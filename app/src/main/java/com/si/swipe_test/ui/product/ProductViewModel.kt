@@ -4,7 +4,6 @@ import android.app.Application
 import android.content.Context
 import android.net.ConnectivityManager
 import android.net.NetworkCapabilities
-import android.net.Uri
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import androidx.work.Constraints
@@ -14,6 +13,7 @@ import androidx.work.WorkManager
 import com.si.swipe_test.data.Product
 import com.si.swipe_test.data.ProductRepository
 import com.si.swipe_test.data.SyncWorker
+import com.si.swipe_test.model.ProductFormData
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
@@ -41,20 +41,8 @@ class ProductViewModel constructor(
     val error = _error.asStateFlow()
 
     // Add Product Form State
-    private val _productName = MutableStateFlow("")
-    val productName = _productName.asStateFlow()
-
-    private val _productType = MutableStateFlow("Product")
-    val productType = _productType.asStateFlow()
-
-    private val _price = MutableStateFlow("")
-    val price = _price.asStateFlow()
-
-    private val _tax = MutableStateFlow("")
-    val tax = _tax.asStateFlow()
-
-    private val _imageUri = MutableStateFlow<Uri?>(null)
-    val imageUri = _imageUri.asStateFlow()
+    private val _formData = MutableStateFlow(ProductFormData())
+    val formData = _formData.asStateFlow()
 
     // Add Product Action State
     private val _isSubmitting = MutableStateFlow(false)
@@ -85,38 +73,23 @@ class ProductViewModel constructor(
         _searchQuery.value = query
     }
 
-    fun onProductNameChange(name: String) {
-        _productName.value = name
-    }
-
-    fun onProductTypeChange(type: String) {
-        _productType.value = type
-    }
-
-    fun onPriceChange(price: String) {
-        _price.value = price
-    }
-
-    fun onTaxChange(tax: String) {
-        _tax.value = tax
-    }
-
-    fun onImageUriChange(uri: Uri?) {
-        _imageUri.value = uri
+    fun onFormChange(newFormData: ProductFormData) {
+        _formData.value = newFormData
     }
 
     fun addProduct() {
-        if (_productName.value.isBlank() || _price.value.isBlank() || _tax.value.isBlank()) {
+        val currentFormData = _formData.value
+        if (currentFormData.productName.isBlank() || currentFormData.price.isBlank() || currentFormData.tax.isBlank()) {
             _addError.value = "Product name, price, and tax cannot be empty."
             return
         }
 
         val newProduct = Product(
-            productName = _productName.value,
-            productType = _productType.value,
-            price = _price.value.toDouble(),
-            tax = _tax.value.toDouble(),
-            image = _imageUri.value?.toString()
+            productName = currentFormData.productName,
+            productType = currentFormData.productType.ifBlank { "Product" },
+            price = currentFormData.price.toDouble(),
+            tax = currentFormData.tax.toDouble(),
+            image = currentFormData.imageUri?.toString()
         )
 
         viewModelScope.launch {
@@ -129,11 +102,7 @@ class ProductViewModel constructor(
     fun resetAddState() {
         _addSuccess.value = false
         _addError.value = null
-        _productName.value = ""
-        _productType.value = "Product"
-        _price.value = ""
-        _tax.value = ""
-        _imageUri.value = null
+        _formData.value = ProductFormData()
     }
 
     private fun scheduleSync() {

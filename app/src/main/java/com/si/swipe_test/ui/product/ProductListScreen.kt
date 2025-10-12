@@ -34,11 +34,7 @@ fun ProductListScreen(viewModel: ProductViewModel = koinViewModel()) {
     val error by viewModel.error.collectAsState()
 
     // Add Product State
-    val productName by viewModel.productName.collectAsState()
-    val productType by viewModel.productType.collectAsState()
-    val price by viewModel.price.collectAsState()
-    val tax by viewModel.tax.collectAsState()
-    val imageUri by viewModel.imageUri.collectAsState()
+    val formData by viewModel.formData.collectAsState()
     val isSubmitting by viewModel.isSubmitting.collectAsState()
     val addSuccess by viewModel.addSuccess.collectAsState()
     val addError by viewModel.addError.collectAsState()
@@ -82,7 +78,7 @@ fun ProductListScreen(viewModel: ProductViewModel = koinViewModel()) {
                     contentPadding = PaddingValues(horizontal = 16.dp, vertical = 16.dp),
                     verticalArrangement = Arrangement.spacedBy(16.dp)
                 ) {
-                    items(products) { product ->
+                    items(products.reversed()) { product ->
                         ProductListItem(product = product)
                     }
                 }
@@ -92,17 +88,9 @@ fun ProductListScreen(viewModel: ProductViewModel = koinViewModel()) {
 
     if (showBottomSheet) {
         AddProductSheet(
-            productName = productName,
-            productType = productType,
-            price = price,
-            tax = tax,
-            imageUri = imageUri,
+            formData = formData,
             isSubmitting = isSubmitting,
-            onProductNameChange = viewModel::onProductNameChange,
-            onProductTypeChange = viewModel::onProductTypeChange,
-            onPriceChange = viewModel::onPriceChange,
-            onTaxChange = viewModel::onTaxChange,
-            onImageUriChange = viewModel::onImageUriChange,
+            onFormChange = viewModel::onFormChange,
             onAddProductClick = { viewModel.addProduct() },
             onDismiss = {
                 showBottomSheet = false
