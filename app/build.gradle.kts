@@ -2,7 +2,6 @@ plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.kotlin.android)
     alias(libs.plugins.kotlin.compose)
-    id("dagger.hilt.android.plugin")
     id("com.google.devtools.ksp")
     kotlin("plugin.serialization") version "2.1.0"
 }
@@ -44,6 +43,14 @@ android {
 
 dependencies {
 
+    // Koin
+    implementation("io.insert-koin:koin-android:3.5.6")
+    implementation("io.insert-koin:koin-androidx-compose:3.5.6")
+    implementation("io.insert-koin:koin-androidx-workmanager:3.5.6")
+
+    // Splash Screen
+    implementation("androidx.core:core-splashscreen:1.0.1")
+
     implementation(libs.androidx.core.ktx)
     implementation(libs.androidx.lifecycle.runtime.ktx)
     implementation(libs.androidx.activity.compose)
@@ -60,23 +67,15 @@ dependencies {
     debugImplementation(libs.androidx.compose.ui.tooling)
     debugImplementation(libs.androidx.compose.ui.test.manifest)
 
-    implementation("com.google.dagger:hilt-android:2.57.2")
-    ksp("com.google.dagger:hilt-compiler:2.57.2")
-    implementation("androidx.hilt:hilt-navigation-compose:1.3.0")
-    ksp("androidx.hilt:hilt-compiler:1.3.0")
-    implementation("com.google.dagger:hilt-android:2.57.1")
-
     implementation("io.coil-kt.coil3:coil-compose:3.3.0")
     implementation("io.coil-kt.coil3:coil-network-okhttp:3.3.0")
     implementation("androidx.navigation:navigation-compose:2.9.3")
     implementation(libs.kotlinx.serialization.json.v180)
 
-
-
     implementation(libs.navigation.compose)
     implementation(libs.kotlinx.serialization.json)
     implementation("com.google.code.gson:gson:2.10.1")
-
+    implementation("androidx.compose.material:material-icons-extended-android:1.6.8")
 
     implementation("androidx.lifecycle:lifecycle-runtime-ktx:2.9.4")
 
@@ -84,4 +83,12 @@ dependencies {
     implementation("com.squareup.retrofit2:converter-gson:2.9.0")
     implementation("com.squareup.okhttp3:okhttp:4.12.0")
     implementation("com.squareup.okhttp3:logging-interceptor:4.12.0")
+
+    val room_version = "2.7.0-alpha11"
+    implementation("androidx.room:room-runtime:$room_version")
+    ksp("androidx.room:room-compiler:$room_version")
+    implementation("androidx.room:room-ktx:$room_version")
+
+    // WorkManager
+    implementation("androidx.work:work-runtime-ktx:2.9.0")
 }
