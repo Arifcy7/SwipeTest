@@ -108,23 +108,21 @@ class ProductRepository constructor(
             Log.d("ProductRepository", "API Response: success=${response.success}, productId=${response.productId}")
 
             if (response.success && response.productId != null) {
-                // Create a new product object with all the details from the server response
-                val syncedProduct = Product(
-                    localId = product.localId, // Keep the original localId
+                // Update the existing product with server data and mark as synced
+                val syncedProduct = product.copy(
                     serverId = response.productId,
                     productName = response.productDetails.productName,
                     productType = response.productDetails.productType,
-                    price = response.productDetails.price,
-                    tax = response.productDetails.tax,
+                    price = response.productDetails.price.toDoubleOrNull() ?: product.price,
+                    tax = response.productDetails.tax.toDoubleOrNull() ?: product.tax,
                     image = response.productDetails.image,
                     isSynced = true,
-                    imageUri = null // The image is now on the server
+                    imageUri = null // Clear local URI as image is now on server
                 )
 
-                // Use REPLACE strategy to update the existing item. 
-                // This ensures all fields are updated to match the server.
-                productDao.insertProduct(syncedProduct)
-                Log.d("ProductRepository", "Synced and updated product ${product.localId} with server data")
+                // Update the product in the database
+                productDao.updateProduct(syncedProduct)
+                Log.d("ProductRepository", "Updated product ${product.localId} with server data (serverId: ${response.productId})")
             }
 
             return response

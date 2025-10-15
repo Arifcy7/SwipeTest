@@ -41,39 +41,30 @@ interface ProductDao {
     @Query("DELETE FROM products WHERE localId = :localId")
     suspend fun deleteProductByLocalId(localId: Int)
 
+    @Query("SELECT * FROM products WHERE productName = :productName AND productType = :productType AND price = :price AND tax = :tax LIMIT 1")
+    suspend fun getProductByDetails(productName: String, productType: String, price: Double, tax: Double): Product?
+
     @Transaction
     suspend fun upsertProducts(products: List<Product>) {
         for (product in products) {
-            // The getProducts() endpoint doesn't return a serverId, so we can't check for it.
-            // We must rely on matching product details.
-
-            // First, see if an unsynced product with these exact details exists.
-            val unsyncedMatch = getUnsyncedProductByDetails(product.productName, product.productType, product.price, product.tax)
-
-            if (unsyncedMatch != null) {
-                // This is an offline-created product that has now appeared in the server list.
-                // However, the server list doesn't have the serverId, so we can't update it here.
-                // We simply mark the local version as synced to prevent it from being uploaded again.
-                // The SyncWorker, which DOES get the serverId, will be responsible for adding it.
-                // Or, if the SyncWorker has already run, this item will soon be updated with a serverId.
-                // For now, we just ensure it's marked as synced.
-                if (!unsyncedMatch.isSynced) {
-                    updateProduct(unsyncedMatch.copy(isSynced = true))
-                }
+            val existingProduct = if (product.serverId != null) {
+                getProductByServerId(product.serverId)
             } else {
-                // No unsynced product matches. This means it's either a brand new product from the server,
-                // or it's a product that is already synced (including our offline one if the SyncWorker was fast).
-                // We use REPLACE strategy to insert new products or update existing ones.
-                // This relies on a unique constraint on serverId, which we should add.
-                // For now, since serverId is not available, we use product details to find existing items.
-                val existingSynced = getProductByDetails(product.productName, product.productType, product.price, product.tax)
-                if (existingSynced == null) {
-                    insertProduct(product.copy(isSynced = true))
-                }
+                getProductByDetails(product.productName, product.productType, product.price, product.tax)
+            }
+
+            if (existingProduct == null) {
+                // New product from server
+                insertProduct(product.copy(isSynced = true))
+            } else if (!existingProduct.isSynced) {
+                // Product exists locally but not synced - update it with server data
+                updateProduct(existingProduct.copy(
+                    serverId = product.serverId,
+                    image = product.image,
+                    isSynced = true,
+                    imageUri = null
+                ))
             }
         }
     }
-
-    @Query("SELECT * FROM products WHERE productName = :productName AND productType = :productType AND price = :price AND tax = :tax LIMIT 1")
-    suspend fun getProductByDetails(productName: String, productType: String, price: Double, tax: Double): Product?
 }
