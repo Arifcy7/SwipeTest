@@ -1,8 +1,14 @@
-package com.si.swipe_test.data
+package com.si.swipe_test.repo
 
 import android.content.Context
+import android.net.Uri
 import android.util.Log
 import android.webkit.MimeTypeMap
+import com.si.swipe_test.data.ApiService
+import com.si.swipe_test.data.Product
+import com.si.swipe_test.data.ProductDao
+import com.si.swipe_test.model.AddProductResponse
+import com.si.swipe_test.model.ProductFormData
 import com.si.swipe_test.utils.ConnectivityManager
 import kotlinx.coroutines.flow.Flow
 import okhttp3.MediaType.Companion.toMediaTypeOrNull
@@ -64,7 +70,7 @@ class ProductRepository constructor(
             productType = product.productType,
             price = product.price.toString(),
             tax = product.tax.toString(),
-            imageUri = product.imageUri?.let { android.net.Uri.parse(it) }
+            imageUri = product.imageUri?.let { Uri.parse(it) }
         )
 
         val response = syncProduct(product, productFormData)
@@ -108,7 +114,6 @@ class ProductRepository constructor(
             Log.d("ProductRepository", "API Response: success=${response.success}, productId=${response.productId}")
 
             if (response.success && response.productId != null) {
-                // Update the existing product with server data and mark as synced
                 val syncedProduct = product.copy(
                     serverId = response.productId,
                     productName = response.productDetails.productName,
@@ -117,10 +122,9 @@ class ProductRepository constructor(
                     tax = response.productDetails.tax.toDoubleOrNull() ?: product.tax,
                     image = response.productDetails.image,
                     isSynced = true,
-                    imageUri = null // Clear local URI as image is now on server
+                    imageUri = null
                 )
 
-                // Update the product in the database
                 productDao.updateProduct(syncedProduct)
                 Log.d("ProductRepository", "Updated product ${product.localId} with server data (serverId: ${response.productId})")
             }

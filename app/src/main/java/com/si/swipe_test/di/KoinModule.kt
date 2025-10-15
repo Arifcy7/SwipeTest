@@ -4,9 +4,9 @@ import androidx.room.Room
 import androidx.work.WorkManager
 import com.si.swipe_test.data.ApiService
 import com.si.swipe_test.data.AppDatabase
-import com.si.swipe_test.data.ProductRepository
+import com.si.swipe_test.repo.ProductRepository
 import com.si.swipe_test.data.SyncWorker
-import com.si.swipe_test.ui.product.ProductViewModel
+import com.si.swipe_test.viewmodel.ProductViewModel
 import com.si.swipe_test.utils.ConnectivityManager
 import okhttp3.OkHttpClient
 import okhttp3.logging.HttpLoggingInterceptor

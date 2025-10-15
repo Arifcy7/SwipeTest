@@ -25,7 +25,7 @@ import coil3.compose.AsyncImage
 import coil3.request.ImageRequest
 import coil3.request.crossfade
 import com.si.swipe_test.R
-import com.si.swipe_test.data.ProductFormData
+import com.si.swipe_test.model.ProductFormData
 
 
 @OptIn(ExperimentalMaterial3Api::class)

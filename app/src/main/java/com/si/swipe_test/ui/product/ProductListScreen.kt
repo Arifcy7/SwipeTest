@@ -51,6 +51,7 @@ import coil3.request.ImageRequest
 import coil3.request.crossfade
 import com.si.swipe_test.R
 import com.si.swipe_test.data.Product
+import com.si.swipe_test.viewmodel.ProductViewModel
 import org.koin.androidx.compose.koinViewModel
 
 

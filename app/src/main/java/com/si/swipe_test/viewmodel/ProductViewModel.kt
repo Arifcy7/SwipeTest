@@ -1,6 +1,5 @@
-package com.si.swipe_test.ui.product
+package com.si.swipe_test.viewmodel
 
-import android.app.Application
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import androidx.work.Constraints
@@ -8,8 +7,9 @@ import androidx.work.NetworkType
 import androidx.work.OneTimeWorkRequestBuilder
 import androidx.work.WorkManager
 import com.si.swipe_test.data.Product
-import com.si.swipe_test.data.ProductRepository
 import com.si.swipe_test.data.SyncWorker
+import com.si.swipe_test.model.ProductFormData
+import com.si.swipe_test.repo.ProductRepository
 import com.si.swipe_test.utils.ConnectivityManager
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
@@ -18,7 +18,6 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
-import com.si.swipe_test.data.ProductFormData
 
 class ProductViewModel constructor(
     private val repository: ProductRepository,
@@ -36,7 +35,7 @@ class ProductViewModel constructor(
         } else {
             products.filter { it.productName.contains(query, ignoreCase = true) }
         }
-    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
+    }.stateIn(viewModelScope, SharingStarted.Companion.WhileSubscribed(5000), emptyList())
 
     private val _isLoading = MutableStateFlow(false)
     val isLoading = _isLoading.asStateFlow()

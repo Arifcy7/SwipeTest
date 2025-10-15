@@ -1,5 +1,6 @@
 package com.si.swipe_test.data
 
+import com.si.swipe_test.model.AddProductResponse
 import okhttp3.MultipartBody
 import okhttp3.RequestBody
 import retrofit2.http.GET
