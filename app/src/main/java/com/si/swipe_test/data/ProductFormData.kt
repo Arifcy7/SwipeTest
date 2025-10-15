@@ -1,4 +1,4 @@
-package com.si.swipe_test.model
+package com.si.swipe_test.data
 
 import android.net.Uri
 

@@ -3,7 +3,6 @@ package com.si.swipe_test.ui.product
 import android.net.Uri
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
-import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
@@ -18,17 +17,15 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import coil3.compose.AsyncImage
 import coil3.request.ImageRequest
 import coil3.request.crossfade
 import com.si.swipe_test.R
-import com.si.swipe_test.model.ProductFormData
+import com.si.swipe_test.data.ProductFormData
 
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -43,10 +40,10 @@ fun AddProductSheet(
     val sheetState = rememberModalBottomSheetState(
         skipPartiallyExpanded = true
     )
+
     ModalBottomSheet(
         onDismissRequest = onDismiss,
         sheetState = sheetState,
-       // windowInsets = WindowInsets.ime
     ) {
         Column(
             modifier = Modifier
@@ -61,7 +58,10 @@ fun AddProductSheet(
                 modifier = Modifier.align(Alignment.CenterHorizontally)
             )
 
-            ImagePicker(imageUri = formData.imageUri, onImageUriChange = { onFormChange(formData.copy(imageUri = it)) })
+            ImagePicker(
+                imageUri = formData.imageUri,
+                onImageUriChange = { onFormChange(formData.copy(imageUri = it)) }
+            )
 
             ProductDetailsForm(
                 productName = formData.productName,
@@ -76,7 +76,7 @@ fun AddProductSheet(
 
             Button(
                 onClick = onAddProductClick,
-                enabled = !isSubmitting,
+                enabled = !isSubmitting && isFormValid(formData),
                 modifier = Modifier
                     .fillMaxWidth()
                     .height(56.dp)
@@ -90,8 +90,17 @@ fun AddProductSheet(
                     Text("Add Product", style = MaterialTheme.typography.titleMedium)
                 }
             }
+
+            Spacer(modifier = Modifier.height(16.dp))
         }
     }
+}
+
+private fun isFormValid(formData: ProductFormData): Boolean {
+    return formData.productName.isNotBlank() &&
+            formData.productType.isNotBlank() &&
+            formData.price.isNotBlank() &&
+            formData.tax.isNotBlank()
 }
 
 @Composable
@@ -112,7 +121,12 @@ private fun ImagePicker(imageUri: Uri?, onImageUriChange: (Uri?) -> Unit) {
     ) {
         if (imageUri == null) {
             Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                Icon(Icons.Default.AddPhotoAlternate, contentDescription = "Add Image", tint = MaterialTheme.colorScheme.primary)
+                Icon(
+                    Icons.Default.AddPhotoAlternate,
+                    contentDescription = "Add Image",
+                    tint = MaterialTheme.colorScheme.primary,
+                    modifier = Modifier.size(48.dp)
+                )
                 Spacer(modifier = Modifier.height(8.dp))
                 Text("Select an image", color = MaterialTheme.colorScheme.primary)
             }
@@ -151,19 +165,31 @@ private fun ProductDetailsForm(
             onValueChange = onProductNameChange,
             label = { Text("Product Name") },
             modifier = Modifier.fillMaxWidth(),
-            singleLine = true
+            singleLine = true,
+            isError = productName.isEmpty()
         )
 
-        ExposedDropdownMenuBox(expanded = dropdownExpanded, onExpandedChange = { dropdownExpanded = !dropdownExpanded }) {
+        ExposedDropdownMenuBox(
+            expanded = dropdownExpanded,
+            onExpandedChange = { dropdownExpanded = !dropdownExpanded }
+        ) {
             OutlinedTextField(
                 value = productType,
                 onValueChange = {},
                 label = { Text("Product Type") },
                 readOnly = true,
-                trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = dropdownExpanded) },
-                modifier = Modifier.menuAnchor().fillMaxWidth()
+                trailingIcon = {
+                    ExposedDropdownMenuDefaults.TrailingIcon(expanded = dropdownExpanded)
+                },
+                modifier = Modifier
+                    .menuAnchor()
+                    .fillMaxWidth(),
+                isError = productType.isEmpty()
             )
-            ExposedDropdownMenu(expanded = dropdownExpanded, onDismissRequest = { dropdownExpanded = false }) {
+            ExposedDropdownMenu(
+                expanded = dropdownExpanded,
+                onDismissRequest = { dropdownExpanded = false }
+            ) {
                 productTypes.forEach { type ->
                     DropdownMenuItem(
                         text = { Text(type) },
@@ -179,17 +205,31 @@ private fun ProductDetailsForm(
         Row(horizontalArrangement = Arrangement.spacedBy(16.dp)) {
             OutlinedTextField(
                 value = price,
-                onValueChange = onPriceChange,
+                onValueChange = { newValue ->
+                    // Only allow numbers and decimal point
+                    if (newValue.isEmpty() || newValue.matches(Regex("^\\d*\\.?\\d*$"))) {
+                        onPriceChange(newValue)
+                    }
+                },
                 label = { Text("Price") },
                 keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
-                modifier = Modifier.weight(1f)
+                modifier = Modifier.weight(1f),
+                singleLine = true,
+                isError = price.isEmpty()
             )
             OutlinedTextField(
                 value = tax,
-                onValueChange = onTaxChange,
+                onValueChange = { newValue ->
+                    // Only allow numbers and decimal point
+                    if (newValue.isEmpty() || newValue.matches(Regex("^\\d*\\.?\\d*$"))) {
+                        onTaxChange(newValue)
+                    }
+                },
                 label = { Text("Tax (%)") },
                 keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
-                modifier = Modifier.weight(1f)
+                modifier = Modifier.weight(1f),
+                singleLine = true,
+                isError = tax.isEmpty()
             )
         }
     }

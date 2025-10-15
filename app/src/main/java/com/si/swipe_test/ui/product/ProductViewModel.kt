@@ -1,9 +1,6 @@
 package com.si.swipe_test.ui.product
 
 import android.app.Application
-import android.content.Context
-import android.net.ConnectivityManager
-import android.net.NetworkCapabilities
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import androidx.work.Constraints
@@ -13,7 +10,7 @@ import androidx.work.WorkManager
 import com.si.swipe_test.data.Product
 import com.si.swipe_test.data.ProductRepository
 import com.si.swipe_test.data.SyncWorker
-import com.si.swipe_test.model.ProductFormData
+import com.si.swipe_test.utils.ConnectivityManager
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
@@ -21,12 +18,14 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
+import com.si.swipe_test.data.ProductFormData
 
 class ProductViewModel constructor(
     private val repository: ProductRepository,
-    private val application: Application,
-    private val workManager: WorkManager
-) : ViewModel() {
+    private val workManager: WorkManager,
+    private val connectivityManager: ConnectivityManager,
+
+    ) : ViewModel() {
 
     private val _searchQuery = MutableStateFlow("")
     val searchQuery = _searchQuery.asStateFlow()
@@ -39,18 +38,15 @@ class ProductViewModel constructor(
         }
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
-    // Other state flows remain the same
     private val _isLoading = MutableStateFlow(false)
     val isLoading = _isLoading.asStateFlow()
 
     private val _error = MutableStateFlow<String?>(null)
     val error = _error.asStateFlow()
 
-    // Add Product Form State
     private val _formData = MutableStateFlow(ProductFormData())
     val formData = _formData.asStateFlow()
 
-    // Add Product Action State
     private val _isSubmitting = MutableStateFlow(false)
     val isSubmitting = _isSubmitting.asStateFlow()
 
@@ -64,7 +60,7 @@ class ProductViewModel constructor(
         viewModelScope.launch {
             _isLoading.value = true
             try {
-                if (isNetworkAvailable()) {
+                if (connectivityManager.isNetworkAvailable()) {
                     repository.refreshProducts()
                 }
             } catch (e: Exception) {
@@ -90,18 +86,19 @@ class ProductViewModel constructor(
             return
         }
 
-        val newProduct = Product(
-            productName = currentFormData.productName,
-            productType = currentFormData.productType.ifBlank { "Product" },
-            price = currentFormData.price.toDouble(),
-            tax = currentFormData.tax.toDouble(),
-            image = currentFormData.imageUri?.toString()
-        )
-
         viewModelScope.launch {
-            repository.saveProductLocally(newProduct)
-            scheduleSync()
-            _addSuccess.value = true
+            _isSubmitting.value = true
+            try {
+                val response = repository.addProduct(currentFormData)
+                if (response == null || !response.success) {
+                    scheduleSync()
+                }
+                _addSuccess.value = true
+            } catch (e: Exception) {
+                _addError.value = "Failed to add product."
+            } finally {
+                _isSubmitting.value = false
+            }
         }
     }
 
@@ -121,18 +118,5 @@ class ProductViewModel constructor(
             .build()
 
         workManager.enqueue(syncWorkRequest)
-    }
-
-    private fun isNetworkAvailable(): Boolean {
-        val connectivityManager =
-            application.getSystemService(Context.CONNECTIVITY_SERVICE) as ConnectivityManager
-        val activeNetwork = connectivityManager.activeNetwork ?: return false
-        val capabilities = connectivityManager.getNetworkCapabilities(activeNetwork) ?: return false
-        return when {
-            capabilities.hasTransport(NetworkCapabilities.TRANSPORT_WIFI) -> true
-            capabilities.hasTransport(NetworkCapabilities.TRANSPORT_CELLULAR) -> true
-            capabilities.hasTransport(NetworkCapabilities.TRANSPORT_ETHERNET) -> true
-            else -> false
-        }
     }
 }

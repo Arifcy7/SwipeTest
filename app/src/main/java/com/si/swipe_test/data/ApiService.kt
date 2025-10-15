@@ -19,6 +19,25 @@ interface ApiService {
         @Part("product_type") productType: RequestBody,
         @Part("price") price: RequestBody,
         @Part("tax") tax: RequestBody,
-        @Part image: MultipartBody.Part? = null
+        @Part image: MultipartBody.Part?
     ): AddProductResponse
 }
+
+//data class AddProductResponse(
+//    val success: Boolean,
+//    val message: String,
+//    @com.google.gson.annotations.SerializedName("product_id")
+//    val productId: Int?,
+//    @com.google.gson.annotations.SerializedName("product_details")
+//    val productDetails: ProductDetails
+//)
+
+data class ProductDetails(
+    @com.google.gson.annotations.SerializedName("product_name")
+    val productName: String,
+    @com.google.gson.annotations.SerializedName("product_type")
+    val productType: String,
+    val price: String,
+    val tax: String,
+    val image: String?
+)

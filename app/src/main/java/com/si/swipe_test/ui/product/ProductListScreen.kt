@@ -1,5 +1,6 @@
 package com.si.swipe_test.ui.product
 
+import android.net.Uri
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -27,7 +28,6 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
-import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
@@ -52,6 +52,7 @@ import coil3.request.crossfade
 import com.si.swipe_test.R
 import com.si.swipe_test.data.Product
 import org.koin.androidx.compose.koinViewModel
+
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -118,12 +119,24 @@ fun ProductListScreen(viewModel: ProductViewModel = koinViewModel()) {
                     }
                 }
 
+                products.isEmpty() -> {
+                    Box(
+                        modifier = Modifier.fillMaxSize(),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Text(text = "No products yet. Add your first product!", style = MaterialTheme.typography.bodyLarge)
+                    }
+                }
+
                 else -> {
                     LazyColumn(
                         contentPadding = PaddingValues(start = 16.dp, end = 16.dp, bottom = 16.dp),
                         verticalArrangement = Arrangement.spacedBy(16.dp)
                     ) {
-                        items(products.reversed()) { product ->
+                        items(
+                            items = products,
+                            key = { product -> product.localId }
+                        ) { product ->
                             ProductListItem(product = product)
                         }
                     }
@@ -147,9 +160,12 @@ fun ProductListScreen(viewModel: ProductViewModel = koinViewModel()) {
 
     if (addSuccess) {
         AlertDialog(
-            onDismissRequest = { viewModel.resetAddState() },
+            onDismissRequest = {
+                viewModel.resetAddState()
+                showBottomSheet = false
+            },
             title = { Text("Success") },
-            text = { Text("Product added successfully! It will be synced with the server shortly.") },
+            text = { Text("Product added successfully!") },
             confirmButton = {
                 Button(onClick = {
                     viewModel.resetAddState()
@@ -177,6 +193,15 @@ fun ProductListScreen(viewModel: ProductViewModel = koinViewModel()) {
 
 @Composable
 fun ProductListItem(product: Product) {
+    val context = LocalContext.current
+
+    // Determine which image to show: server image, local URI, or placeholder
+    val imageData = when {
+        !product.image.isNullOrBlank() -> product.image
+        !product.imageUri.isNullOrBlank() -> Uri.parse(product.imageUri)
+        else -> R.drawable.ic_placeholder
+    }
+
     Card(
         modifier = Modifier.fillMaxWidth(),
         elevation = CardDefaults.cardElevation(defaultElevation = 8.dp),
@@ -188,8 +213,8 @@ fun ProductListItem(product: Product) {
                 .fillMaxWidth()
         ) {
             AsyncImage(
-                model = ImageRequest.Builder(LocalContext.current)
-                    .data(product.image?.takeIf { it.isNotBlank() } ?: R.drawable.ic_placeholder)
+                model = ImageRequest.Builder(context)
+                    .data(imageData)
                     .crossfade(true)
                     .build(),
                 placeholder = painterResource(R.drawable.ic_placeholder),

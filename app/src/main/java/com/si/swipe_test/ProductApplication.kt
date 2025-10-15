@@ -6,6 +6,7 @@ import com.si.swipe_test.di.dataModule
 import com.si.swipe_test.di.workManagerModule
 import org.koin.android.ext.koin.androidContext
 import org.koin.android.ext.koin.androidLogger
+import org.koin.androidx.workmanager.koin.workManagerFactory
 import org.koin.core.context.startKoin
 
 class ProductApplication : Application() {
@@ -14,6 +15,7 @@ class ProductApplication : Application() {
         startKoin {
             androidLogger()
             androidContext(this@ProductApplication)
+            workManagerFactory()
             modules(appModule, dataModule, workManagerModule)
         }
     }

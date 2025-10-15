@@ -1,33 +1,34 @@
 package com.si.swipe_test.data
 
 import android.content.Context
+import android.net.Uri
 import androidx.work.CoroutineWorker
 import androidx.work.WorkerParameters
-import okhttp3.MediaType.Companion.toMediaTypeOrNull
-import okhttp3.RequestBody.Companion.toRequestBody
-import org.koin.core.component.KoinComponent
-import org.koin.core.component.inject
+import com.si.swipe_test.utils.ConnectivityManager
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 
 class SyncWorker(
-    context: Context,
-    workerParams: WorkerParameters
-) : CoroutineWorker(context, workerParams), KoinComponent {
+    appContext: Context,
+    workerParams: WorkerParameters,
+    private val productRepository: ProductRepository,
+    private val connectivityManager: ConnectivityManager,
+    private val productDao: ProductDao
+) : CoroutineWorker(appContext, workerParams) {
 
-    private val repository: ProductRepository by inject()
-
-    override suspend fun doWork(): Result {
-        return try {
-            val unsyncedProducts = repository.getUnsyncedProducts()
-            unsyncedProducts.forEach { product ->
-                val nameBody = product.productName.toRequestBody("text/plain".toMediaTypeOrNull())
-                val typeBody = product.productType.toRequestBody("text/plain".toMediaTypeOrNull())
-                val priceBody = product.price.toString().toRequestBody("text/plain".toMediaTypeOrNull())
-                val taxBody = product.tax.toString().toRequestBody("text/plain".toMediaTypeOrNull())
-
-                // For simplicity, we are not handling image uploads in the background worker for now.
-                val response = repository.addProduct(nameBody, typeBody, priceBody, taxBody)
-                if (response.success) {
-                    repository.setProductSynced(product.id)
+    override suspend fun doWork(): Result = withContext(Dispatchers.IO) {
+        try {
+            if (connectivityManager.isNetworkAvailable()) {
+                val unsyncedProducts = productDao.getUnsyncedProducts()
+                for (product in unsyncedProducts) {
+                    val productFormData = ProductFormData(
+                        productName = product.productName,
+                        productType = product.productType,
+                        price = product.price.toString(),
+                        tax = product.tax.toString(),
+                        imageUri = product.imageUri?.let { Uri.parse(it) }
+                    )
+                    productRepository.addProduct(productFormData)
                 }
             }
             Result.success()
