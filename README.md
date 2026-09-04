@@ -1,968 +1,389 @@
-# EDGE-GEOINT — Product Requirements Document
+# 🛡️ AI Data Readiness Platform (AegisMind Engine)
 
-**Version:** 1.0
-**Status:** Product Definition
-**Product:** EDGE-GEOINT
-**Domain:** Earth Observation / Geospatial Intelligence
-**Deployment Philosophy:** On-Premises / Offline-First
-**Primary Architecture:** Software + Edge Hardware + Advanced AI
+> **An Explainable Pre-Machine Learning Diagnostic, Automated Remediation & Model Benchmarking Platform**  
+> *Bridging the critical gap between raw, messy data and robust, production-grade machine learning models.*
 
 ---
 
-# 1. Executive Summary
+## 📑 Table of Contents
 
-EDGE-GEOINT is an offline-first Earth Observation intelligence platform designed to transform large satellite-imagery archives from passive storage into an actively searchable intelligence source.
-
-Traditional satellite imagery systems primarily allow analysts to search using metadata:
-
-* coordinates;
-* acquisition date;
-* satellite;
-* sensor;
-* product type;
-* geographic area.
-
-EDGE-GEOINT adds a semantic intelligence layer.
-
-An analyst can ask:
-
-> "Show me locations where new structures appeared near a river."
-
-or:
-
-> "Find locations visually similar to this area."
-
-or:
-
-> "What changed in this region during the last six months?"
-
-The platform retrieves relevant imagery, analyses temporal changes, suppresses environmental false alarms, and presents the analyst with evidence, confidence and provenance.
-
-The system is divided into **three product phases**.
+1. [Executive Overview](#-executive-overview)
+2. [End-to-End System Architecture & Execution Lifecycle](#-end-to-end-system-architecture--execution-lifecycle)
+3. [Mathematical Foundations & 0–100 Data Health Score](#-mathematical-foundations--0100-data-health-score)
+4. [Diagnostic & Quality Detection Suite](#-diagnostic--quality-detection-suite)
+5. [3-Stage Explainable AI Recommendation Engine](#-3-stage-explainable-ai-recommendation-engine)
+6. [Safe-Order 12-Step Transformation Execution Engine](#-safe-order-12-step-transformation-execution-engine)
+7. [Cross-Validation & Model Benchmarking Engine](#-cross-validation--model-benchmarking-engine)
+8. [Export Hub & Reproducible Artifact Generation](#-export-hub--reproducible-artifact-generation)
+9. [Project Directory & File Structure](#-project-directory--file-structure)
+10. [REST API Data Contracts & Endpoint Reference](#-rest-api-data-contracts--endpoint-reference)
+11. [Installation & Local Setup Guide](#-installation--local-setup-guide)
 
 ---
 
-# 2. Three-Part Product Strategy
+## 📌 Executive Overview
 
-```text
-                    EDGE-GEOINT
-                         |
-          +--------------+--------------+
-          |              |              |
-          v              v              v
+Most modern AutoML frameworks attempt to solve: **"Which algorithm or hyperparameter configuration gives the highest test accuracy?"**
 
-       PHASE 1        PHASE 2        PHASE 3
+However, in real-world data science, **garbage in equals garbage out**. Real datasets suffer from missingness, exact duplicate rows, extreme outliers, unparsed datetime strings, mixed measurement units, severe class imbalance, high-cardinality IDs, and multicollinearity. 
 
-        BASIC         HARDWARE       ADVANCED
-         FIND          CARRY        UNDERSTAND
+The **AI Data Readiness Platform** solves the prerequisite question:  
+👉 **"Is this dataset statistically viable for machine learning, what specific defects exist, why do they matter, and how can we safely transform it?"**
 
-      PS Minimum      Edge Node      AI / USP
-      Software       Offline Field   Intelligence
-                     Capability
+### Core Principles
+* **100% Explainable & Grounded:** Every recommendation is computed with statistical heuristics and justified using LLM explanations (Gemini / OpenAI) with deterministic fallback templates.
+* **Human-in-the-Loop Governance:** Destructive operations (dropping columns, dropping rows) are never executed without explicit user opt-in.
+* **Mathematical Sequence Integrity:** Transformations run in a mathematically safe order to avoid data leakage and distorted statistics.
+* **Full Pipeline Reproducibility:** Generates standalone Python/Scikit-Learn pipeline scripts, executive PDF audit reports, and model-ready cleaned CSVs.
+
+---
+
+## 🏗️ End-to-End System Architecture & Execution Lifecycle
+
+```mermaid
+flowchart TD
+    A["Raw Dataset Upload (.csv / .xlsx)"] --> B["Automated Type Profiling & Schema Inference"]
+    B --> C["User Defines Objective (Target Column + Problem Type)"]
+    C --> D["Comprehensive Diagnostic Profiling & Quality Scan"]
+    D --> E["Mathematical 0–100 Data Health Score Calculation"]
+    D --> F["3-Stage Explainable Remediation Engine (Stats -> Rules -> LLM Justifications)"]
+    E & F --> G["Interactive Diagnostic Dashboard & Approval Checklist"]
+    G -->|User Toggles & Approves Fixes| H["12-Step Safe-Order Transformation Execution Pipeline"]
+    H --> I["Post-Cleaning Health Score & Before/After Metric Diff Calculation"]
+    H --> J["3-Fold Cross-Validated ML Model Leaderboard Benchmarking"]
+    H --> K["Artifact Generation Hub (Cleaned CSV, Python Script, PDF Audit, JSON Manifest)"]
 ```
 
 ---
 
-# 3. Phase 1 — BASIC
+## 🧮 Mathematical Foundations & 0–100 Data Health Score
 
-## "The Bare Minimum Expected From Us"
+The platform computes a **0–100 composite Data Health Score** ($S_{\text{composite}}$) along with 6 individual sub-scores that quantify data readiness.
 
-This phase exists primarily to satisfy the organiser's problem statement.
+```math
+S_{\text{composite}} = \sum_{i=1}^{6} w_i \cdot S_i
+$$
+```
 
-It should **not** attempt to solve every possible defence/intelligence problem.
+Where the weights $w_i$ and sub-scores $S_i$ are mathematically defined as follows:
 
-The objective is to build a technically credible EO intelligence platform capable of:
+| Sub-Score Dimension ($S_i$) | Weight ($w_i$) | Mathematical Formula & Penalties | Thresholds & Risk Criteria |
+| :--- | :---: | :--- | :--- |
+| **1. Missingness Score** | **25%** ($0.25$) | $S_{\text{miss}} = \max\left(0, 100 - (\text{overall\_missing\_pct} \times 2.5)\right)$ | Penalizes total missing values. $>40\%$ missing reduces sub-score to $0$. |
+| **2. Duplication Score** | **15%** ($0.15$) | $S_{\text{dup}} = \max\left(0, 100 - (\text{duplicate\_rows\_pct} \times 5.0)\right)$ | $>20\%$ duplicate rows reduces sub-score to $0$ to prevent severe train-test leakage. |
+| **3. Outlier Score** | **15%** ($0.15$) | $S_{\text{out}} = \max\left(0, 100 - (\overline{\text{outlier\_pct}} \times 3.0 + N_{\text{outlier\_cols}} \times 4.0)\right)$ | Evaluates percentage of extreme points beyond $1.5 \times \text{IQR}$ across numeric columns. |
+| **4. Domain Validity Score** | **15%** ($0.15$) | $S_{\text{val}} = \max\left(0, 100 - (N_{\text{invalid\_cols}} \times 20.0)\right)$ | Penalizes negative values in strictly non-negative columns (age, salary, price, count). |
+| **5. Target Balance Score** | **15%** ($0.15$) | $S_{\text{bal}} = \max\left(0, 100 - (\text{majority\_ratio} - 0.5) \times 160.0\right)$ | For classification: $50:50 \rightarrow 100$, $95:5 \rightarrow 28$, $100:0 \rightarrow 20$. Defaults to $100.0$ for regression. |
+| **6. Feature Quality Score** | **15%** ($0.15$) | $S_{\text{feat}} = \max\left(0, 100 - (N_{\text{collinear\_pairs}} \times 10.0 + N_{\text{constant\_cols}} \times 15.0)\right)$ | Penalizes features with Pearson correlation $\|r\| > 0.85$ or near-zero variance ($\sigma^2 = 0$). |
 
-1. ingesting imagery;
-2. indexing imagery;
-3. searching imagery semantically;
-4. searching by image similarity;
-5. analysing change over time;
-6. suppressing obvious false alarms;
-7. discovering similar locations;
-8. preserving provenance;
-9. supporting analyst review;
-10. operating completely offline.
+### Letter Grade Classifications
+* **`A (90–100)` — Excellent Readiness:** Data is model-ready with negligible defects.
+* **`B (80–89.9)` — Good Readiness:** Minor missingness or mild outliers present; standard pipelines will converge.
+* **`C (70–79.9)` — Fair (Needs Cleaning):** Moderate data quality defects that risk degrading gradient steps or accuracy.
+* **`D (60–69.9)` — Poor (High Risk):** Significant data leaks, heavy duplication, or severe multicollinearity.
+* **`F (<60)` — Critical Quality Defects:** Unusable without structural remediation.
 
 ---
 
-## 3.1 Data Ingestion
+## 🔍 Diagnostic & Quality Detection Suite
 
-The platform shall support:
+The detector module ([`detector.py`](file:///c:/Users/Arif%20Choudhary/OneDrive/Desktop/Major%20project/backend/app/engine/detector.py)) runs a multi-pass statistical scan:
 
-* GeoTIFF;
-* Cloud Optimized GeoTIFF;
-* organiser-defined compatible formats.
+### 1. Inferred Column Type Classification
+Each column is dynamically categorized into one of 6 semantic types:
+* **`numeric`**: Float or integer series with $>10$ unique numeric values.
+* **`categorical`**: Strings or low-cardinality integers ($\le 20$ unique categories).
+* **`boolean`**: Binary values (`{0, 1}`, `{'True', 'False'}`, `{'Yes', 'No'}`).
+* **`datetime`**: Dates matching standard ISO, timestamp, or slash formats.
+* **`id`**: Unique identifier columns (cardinality ratio $>0.98$ on string/integer series).
+* **`text`**: High-cardinality natural language or unformatted token sequences.
 
-For every scene, the system should preserve:
+### 2. Detection Algorithms & Heuristics
 
-* source ID;
-* acquisition date/time;
-* sensor;
-* platform;
-* CRS;
-* geographic bounds;
-* resolution;
-* bands;
-* processing metadata.
+* **Missing Values**:
+  * $\text{Missing Pct} > 50\%$ $\rightarrow$ Severity: **Critical** (Suggests feature elimination).
+  * $20\% < \text{Missing Pct} \le 50\%$ $\rightarrow$ Severity: **High** (Suggests advanced imputation or indicator flag).
+  * $0\% < \text{Missing Pct} \le 20\%$ $\rightarrow$ Severity: **Medium** (Suggests median/mode imputation).
+* **Exact Duplicate Rows**:
+  * Computes exact hash equality across all features using Pandas `df.duplicated()`.
+* **Statistical Outliers (Tukey's Fences)**:
+  * Lower Bound: $Q_1 - 1.5 \times \text{IQR}$
+  * Upper Bound: $Q_3 + 1.5 \times \text{IQR}$
+  * *Smart Filtering:* Skips columns representing calendar years, IDs, or columns with skewness $\approx 0$.
+* **Domain Validity & Mixed Units**:
+  * Detects negative numbers in non-negative keyword columns (`age`, `salary`, `income`, `price`, `cost`, `revenue`, `distance`, `fare`, `tenure`).
+  * Detects mixed unit strings (e.g. `"90 min"`, `"2 Seasons"`, `"120 km/h"`).
+* **Multicollinearity**:
+  * Computes the Pearson Correlation Matrix $R$. Any pair $(X_i, X_j)$ where $\|r_{ij}\| > 0.85$ triggers a collinearity warning.
+* **Class Imbalance**:
+  * For classification targets, computes the majority class percentage. Flags imbalances exceeding $70\%:30\%$.
 
-Imagery should be converted into searchable tiles while retaining a link to the original scene.
+---
 
-```text
-Satellite Scene
-      |
-      v
-Validation
-      |
-      v
-Metadata Extraction
-      |
-      v
-Quality Assessment
-      |
-      v
-Tiling
-      |
-      v
-Embedding Generation
-      |
-      v
-Vector Index
+## 🧠 3-Stage Explainable AI Recommendation Engine
+
+```mermaid
+flowchart LR
+    S1["Stage 1: Deterministic Statistical Profile Extraction"] --> S2["Stage 2: Heuristic Rule Mapping (Action & Method)"]
+    S2 --> S3["Stage 3: LLM Plain-Language Justification (Gemini / OpenAI)"]
+    S3 --> S4["Explainable Recommendation Card"]
+```
+
+### Stage 1: Deterministic Statistical Profiling
+Gathers raw column metrics: distribution skewness $\gamma_1$, missingness percentage, cardinality, variance, min, max, and correlation.
+
+### Stage 2: Heuristic Rule Mapping ([`rules.py`](file:///c:/Users/Arif%20Choudhary/OneDrive/Desktop/Major%20project/backend/app/engine/rules.py))
+Maps detected issues to standard Scikit-Learn remediation transformations:
+* High Missingness ($>50\%$) $\rightarrow$ `Drop Redundant / High-Missingness Feature`
+* Continuous Numeric Missingness $\rightarrow$ `Median Imputation (Skewed)` or `Mean Imputation (Normal)`
+* Categorical Missingness $\rightarrow$ `Mode Imputation` or `Constant Fill ('Unknown')`
+* Extreme Outliers $\rightarrow$ `IQR Winsorization / Capping (1.5x IQR)`
+* Non-Negative Domain Breach $\rightarrow$ `Zero-Clipping Transformation`
+* Collinear Pair $\rightarrow$ `Drop Redundant Collinear Feature`
+* High-Cardinality Categoricals $\rightarrow$ `Frequency / Target Encoding` or `Drop High-Cardinality ID`
+
+### Stage 3: Generative AI Justification ([`explainer.py`](file:///c:/Users/Arif%20Choudhary/OneDrive/Desktop/Major%20project/backend/app/engine/explainer.py))
+The system feeds the exact statistical parameters into an LLM (Google Gemini or OpenAI) to generate a high-clarity explanation answering:
+1. *Why does this defect degrade machine learning models?*
+2. *Why is this specific remediation algorithm the mathematically optimal choice?*
+3. *What is the exact impact on variance, bias, and inference?*
+
+> **Zero-Failure Fallback:** If API keys are missing or the network fails, the system seamlessly uses deterministic, high-accuracy statistical fallback templates so execution never halts.
+
+---
+
+## ⚙️ Safe-Order 12-Step Transformation Execution Engine
+
+When the user clicks **"Apply Fixes & Verify"**, transformations are applied in an immutable, mathematically safe order ([`executor.py`](file:///c:/Users/Arif%20Choudhary/OneDrive/Desktop/Major%20project/backend/app/engine/executor.py)):
+
+```mermaid
+graph TD
+    S1["1. Exact Deduplication"] --> S2["2. Datetime Feature Engineering"]
+    S2 --> S3["3. Mixed Unit Parsing"]
+    S3 --> S4["4. Delimited Token Multi-Hot Encoding"]
+    S4 --> S5["5. Invalid Domain Value Clipping"]
+    S5 --> S6["6. Drop Collinear & Unviable Features"]
+    S6 --> S7["7. Semantic Missing Value Imputation"]
+    S7 --> S8["8. High-Cardinality Binning & ID Filtering"]
+    S8 --> S9["9. Outlier Winsorization"]
+    S9 --> S10["10. Categorical One-Hot Encoding"]
+    S10 --> S11["11. StandardScaler Normalization"]
+    S11 --> S12["12. SMOTE Target Resampling"]
+```
+
+### Why Execution Order Matters:
+1. **Deduplication First:** Prevents duplicate rows from distorting column medians, means, and standard deviations.
+2. **Datetime & Units Extracted Early:** Allows newly generated continuous features (e.g. `release_year`, `duration_minutes`) to participate in downstream imputation and scaling.
+3. **Dropping Features Before Imputation:** Avoids wasting compute power estimating values for columns destined to be removed.
+4. **Imputation Before Winsorization:** Ensures quantile computations ($Q_1, Q_3$) operate on full arrays without NaN pollution.
+5. **Encoding Before Scaling:** Converts categorical strings to binary columns so that numerical scaling normalizes all active inputs uniformly.
+6. **Resampling (SMOTE) Last:** Ensures synthetic minority oversampling occurs only on fully encoded, imputed, and scaled matrices.
+
+---
+
+## 🏆 Cross-Validation & Model Benchmarking Engine
+
+Once the dataset is transformed, the platform automatically trains and benchmarks an ensemble of candidate algorithms ([`benchmark.py`](file:///c:/Users/Arif%20Choudhary/OneDrive/Desktop/Major%20project/backend/app/engine/benchmark.py)).
+
+### Cross-Validation Strategy
+
+#### 1. Classification Problems
+* **Validation Method:** **`StratifiedKFold(n_splits=3, shuffle=True, random_state=42)`**
+* **Scoring Metric:** **Macro F1-Score** (`make_scorer(f1_score, average="macro", zero_division=0)`)
+* **Purpose:** Preserves exact class balance ratios across training and test splits to guard against misleading accuracy in imbalanced scenarios.
+
+#### 2. Regression Problems
+* **Validation Method:** **`KFold(n_splits=3, shuffle=True, random_state=42)`**
+* **Scoring Metric:** **$R^2$ Score (Coefficient of Determination)** (`make_scorer(r2_score)`)
+* **Purpose:** Evaluates variance explanation across independent folds without distributional bias.
+
+### Benchmarked Model Pool
+
+```
+┌──────────────────────────────────────────────┬──────────────────────────────────────────────┐
+│ Classification Candidate Models              │ Regression Candidate Models                  │
+├──────────────────────────────────────────────┼──────────────────────────────────────────────┤
+│ • Random Forest Classifier (25 estimators)   │ • Random Forest Regressor (25 estimators)    │
+│ • XGBoost Classifier (if available)          │ • XGBoost Regressor (if available)           │
+│ • LightGBM Classifier (if available)         │ • LightGBM Regressor (if available)          │
+│ • Gradient Boosting Classifier               │ • Gradient Boosting Regressor                │
+│ • Logistic Regression (L2 Regularized)       │ • Ridge Regression (L2 Regularized)          │
+│ • Decision Tree Classifier (Max Depth = 5)   │ • Decision Tree Regressor (Max Depth = 5)    │
+│ • Support Vector Machine (RBF Kernel)        │ • Support Vector Regressor (SVR RBF Kernel)  │
+└──────────────────────────────────────────────┴──────────────────────────────────────────────┘
+```
+
+The output yields a ranked **Leaderboard** detailing:
+* Model Rank & Name
+* Cross-Validated Score ($\text{Macro F1}$ or $R^2$)
+* Training Execution Latency ($\text{seconds}$)
+* Suitability Rating (`High` / `Moderate` / `Low`)
+* Architectural Description & Rationale
+
+---
+
+## 📦 Export Hub & Reproducible Artifact Generation
+
+Upon execution, the engine compiles 4 production-grade export artifacts:
+
+1. **Cleaned Dataset (`.csv`):** Fully sanitized, transformed, and model-ready tabular file.
+2. **Standalone Python Pipeline Script (`.py`):** Self-contained, executable Scikit-Learn script containing the exact sequence of transformations for local integration or CI/CD pipelines.
+3. **Executive PDF Audit Report (`.pdf`):** Formal ReportLab-generated audit document with Data Health Score dials, issue breakdowns, before/after metric deltas, and model recommendations.
+4. **Machine-Readable JSON Manifest (`.json`):** Full telemetry metadata containing column profiles, statistical issues, applied remediation rules, and benchmarking leaderboards.
+
+---
+
+## 📂 Project Directory & File Structure
+
+```
+Major project/
+├── backend/                               # FastAPI Python Backend
+│   ├── app/
+│   │   ├── core/
+│   │   │   └── config.py                  # Environment settings, CORS, LLM API keys
+│   │   ├── engine/                        # Core Data Intelligence Engines
+│   │   │   ├── profiler.py                # Type inference & summary statistics
+│   │   │   ├── detector.py                # Multi-pass data defect detection
+│   │   │   ├── scorer.py                  # 0–100 Data Health Score algorithm
+│   │   │   ├── rules.py                   # Heuristic recommendation generator
+│   │   │   ├── explainer.py               # AI justifications (Gemini / OpenAI)
+│   │   │   ├── executor.py                # 12-Step safe-order transformation pipeline
+│   │   │   ├── benchmark.py               # 3-Fold cross-validation model evaluator
+│   │   │   └── reporter.py                # PDF ReportLab generator
+│   │   ├── routers/                       # REST API Route Controllers
+│   │   │   ├── ingestion.py               # File upload & profile endpoints
+│   │   │   ├── diagnosis.py               # Objective & health diagnosis
+│   │   │   ├── remediation.py             # Transformation pipeline execution
+│   │   │   └── export.py                  # Download & artifact endpoints
+│   │   └── main.py                        # FastAPI application entrypoint
+│   ├── storage/                           # Ingested datasets & export artifacts
+│   ├── requirements.txt                   # Python dependencies
+│   └── .env                               # Environment configurations
+│
+├── frontend/                              # Next.js Turborepo Workspace
+│   ├── apps/
+│   │   ├── dashboard/                     # Main Application UI
+│   │   │   └── src/
+│   │   │       ├── app/                   # App Router pages & global styles
+│   │   │       │   ├── page.tsx           # Step-by-step diagnostic workflow
+│   │   │       │   └── globals.css        # Design tokens & modern light theme
+│   │   │       ├── components/            # UI Components
+│   │   │       │   ├── Header.tsx         # Platform navbar & dataset indicator
+│   │   │       │   ├── Stepper.tsx        # 5-stage progress indicator
+│   │   │       │   ├── UploadStep.tsx     # Drag-and-drop ingestion zone
+│   │   │       │   ├── ObjectiveStep.tsx  # Target column & problem selector
+│   │   │       │   ├── HealthScoreGauge.tsx # Radial SVG health score meter
+│   │   │       │   ├── ProfileTable.tsx   # Feature profiling matrix table
+│   │   │       │   ├── RecommendationChecklist.tsx # Explainable fix approvals
+│   │   │       │   ├── BeforeAfterDiff.tsx # Before vs after delta comparison
+│   │   │       │   ├── ModelLeaderboard.tsx # Ranked ML model benchmark cards
+│   │   │       │   └── ExportHub.tsx      # Artifact download hub
+│   │   │       └── services/
+│   │   │           └── api.ts             # Axios API client & data interfaces
+│   │   └── landing/                       # Product Landing & Feature Showcase
+│   ├── package.json                       # Turborepo root configuration
+│   └── turbo.json                         # Turborepo pipeline caching
+│
+└── README.md                              # Complete System Documentation
 ```
 
 ---
 
-# 3.2 Semantic Search
+## 🔌 REST API Data Contracts & Endpoint Reference
 
-The analyst should be able to enter natural-language queries.
+### Base URL: `http://localhost:8000/api/v1`
 
-Examples:
-
-> "Newly built structures near a river."
-
-> "Large vehicle concentrations on open ground."
-
-> "Dense development around a major road."
-
-The system:
-
-```text
-Natural Language
-       |
-       v
-Text Embedding
-       |
-       v
-Vector Search
-       |
-       v
-Metadata Filtering
-       |
-       v
-Ranking
-       |
-       v
-Relevant Imagery
-```
+| Method | Endpoint | Description | Request Payload / Params | Response Payload |
+| :--- | :--- | :--- | :--- | :--- |
+| `POST` | `/datasets/upload` | Ingest raw CSV or Excel dataset | `multipart/form-data` (`file`) | `DatasetSummary` (ID, rows, cols, preview sample) |
+| `POST` | `/diagnose` | Run full diagnostic profiling & AI fixes | `{"dataset_id": "...", "problem_type": "...", "target_column": "..."}` | `DiagnosticResponse` (Profile, Health Score, Recommendations) |
+| `POST` | `/execute` | Run safe-order cleaning & benchmarking | `{"dataset_id": "...", "approved_recommendation_ids": [...]}` | `ExecutionResult` (Before/After Score, Leaderboard, Deltas) |
+| `GET` | `/export/csv/{dataset_id}` | Download model-ready CSV | Path Parameter: `dataset_id` | File download (`.csv`) |
+| `GET` | `/export/pipeline/{dataset_id}`| Download standalone Python code | Path Parameter: `dataset_id` | File download (`.py`) |
+| `GET` | `/export/pdf/{dataset_id}` | Download executive PDF audit | Path Parameter: `dataset_id` | File download (`.pdf`) |
+| `GET` | `/export/manifest/{dataset_id}`| Download machine-readable manifest | Path Parameter: `dataset_id` | JSON payload (`manifest.json`) |
 
 ---
 
-# 3.3 Image-to-Image Search
+## 🚀 Installation & Local Setup Guide
 
-An analyst should be able to select an interesting image/tile.
-
-The platform finds visually or semantically similar locations.
-
-```text
-Reference Image
-      |
-      v
-Image Embedding
-      |
-      v
-Vector Search
-      |
-      v
-Similar Locations
-```
-
-This directly supports discovery without requiring the analyst to formulate another textual query.
+### Prerequisites
+* **Python 3.10+** (Python 3.11 recommended)
+* **Node.js 18+** & **npm 9+**
+* Optional: Gemini API Key (`GEMINI_API_KEY`) or OpenAI API Key (`OPENAI_API_KEY`)
 
 ---
 
-# 3.4 Multi-Temporal Change Detection
+### Step 1: Backend Setup
 
-The system shall support:
+1. Open terminal and navigate to the backend directory:
+   ```bash
+   cd backend
+   ```
 
-* appearance;
-* disappearance;
-* expansion;
-* contraction;
-* structural development;
-* water-extent changes;
-* road development;
-* clearance.
+2. Create and activate a Python virtual environment:
+   ```bash
+   # Windows (PowerShell)
+   python -m venv venv
+   .\venv\Scripts\Activate.ps1
 
-Example:
+   # macOS / Linux
+   python3 -m venv venv
+   source venv/bin/activate
+   ```
 
-```text
-2021       2022       2023       2024
- |          |          |          |
- v          v          v          v
-No feature  No feature Small      Large
-                      change      change
-```
+3. Install required Python packages:
+   ```bash
+   pip install -r requirements.txt
+   ```
 
-The system should determine the earliest usable observation supporting the change.
+4. Configure your `.env` file in the `backend/` folder:
+   ```env
+   PROJECT_NAME="AI Data Readiness Platform"
+   API_V1_STR="/api/v1"
+   BACKEND_CORS_ORIGINS=["http://localhost:3000","http://localhost:3001"]
 
----
+   # Optional: AI Reasoning API Keys (Defaults to statistical template fallback if omitted)
+   GEMINI_API_KEY="your-gemini-api-key-here"
+   OPENAI_API_KEY=""
+   ```
 
-# 3.5 False-Alarm Suppression
-
-This is one of the most important technical components.
-
-The platform must not simply perform:
-
-```text
-Image A - Image B = CHANGE
-```
-
-because this generates massive numbers of false positives.
-
-The system must account for:
-
-* clouds;
-* haze;
-* shadows;
-* snow;
-* season;
-* illumination;
-* viewing angle;
-* sensor differences;
-* image registration;
-* radiometric differences.
-
-The output should therefore be:
-
-```text
-Candidate Change
-       |
-       v
-Quality Assessment
-       |
-       v
-Registration Check
-       |
-       v
-Environmental Analysis
-       |
-       v
-Confidence
-       |
-       v
-Analyst Review
-```
+5. Start the FastAPI backend server:
+   ```bash
+   uvicorn app.main:app --reload --port 8000
+   ```
+   * *Swagger API Interactive Docs:* [http://localhost:8000/docs](http://localhost:8000/docs)
+   * *API Health Check:* [http://localhost:8000/health](http://localhost:8000/health)
 
 ---
 
-# 3.6 Similar-Site Discovery
+### Step 2: Frontend Setup
 
-If an analyst discovers an interesting location, the system should answer:
+1. Open a new terminal and navigate to the frontend directory:
+   ```bash
+   cd frontend
+   ```
 
-> "Where else does something similar exist?"
+2. Install Node dependencies:
+   ```bash
+   npm install
+   ```
 
-The platform can use embeddings and clustering to identify groups of similar locations.
+3. Start the Next.js development server:
+   ```bash
+   # Start all applications via Turborepo
+   npm run dev
 
----
+   # Or run dashboard directly
+   npm run dev:dashboard
+   ```
 
-# 3.7 Analyst Workbench
-
-The analyst should see:
-
-* map;
-* imagery;
-* search results;
-* acquisition dates;
-* before/after imagery;
-* change overlays;
-* confidence;
-* sensor information;
-* processing history;
-* provenance.
-
-The analyst can:
-
-* confirm;
-* reject;
-* investigate;
-* bookmark;
-* export.
+4. Open your browser and navigate to:
+   * **Dashboard Application:** [http://localhost:3000](http://localhost:3000) (or port displayed in terminal)
+   * **Landing Page:** [http://localhost:3001](http://localhost:3001)
 
 ---
 
-# 3.8 Incremental Ingestion
+## 🛡️ License
 
-New imagery must not require rebuilding the entire archive.
-
-```text
-Existing Archive
-       |
-       v
-Existing Index
-
-New Scene
-       |
-       v
-Process New Scene
-       |
-       v
-Generate Embedding
-       |
-       v
-Insert Into Index
-```
-
----
-
-# 3.9 Offline Operation
-
-The system must continue working when:
-
-```text
-Internet = OFF
-```
-
-All required:
-
-* models;
-* weights;
-* libraries;
-* datasets;
-* indexes;
-
-must already be staged locally.
-
----
-
-# 3.10 Phase 1 Success Criteria
-
-Phase 1 is complete when the evaluator can:
-
-* ingest EO imagery;
-* search using natural language;
-* perform image-to-image search;
-* filter by location/time/sensor;
-* analyse changes;
-* suppress obvious false alarms;
-* identify earliest supporting evidence;
-* discover similar locations;
-* review results;
-* preserve provenance;
-* incrementally ingest new data;
-* operate offline.
-
-**This is the competition baseline.**
-
----
-
-# 4. Phase 2 — HARDWARE
-
-# "CARRY — Take Intelligence to the Edge"
-
-The second phase transforms EDGE-GEOINT from a server-only platform into an **edge intelligence system**.
-
-The important distinction is:
-
-> We are not trying to build another smartphone.
-
-We are building a **purpose-built, controlled, offline intelligence terminal**.
-
----
-
-# 4.1 Why Hardware?
-
-A central server is excellent when connectivity exists.
-
-However, there are environments where connectivity may be:
-
-* unavailable;
-* unreliable;
-* deliberately disabled;
-* too slow;
-* operationally undesirable.
-
-Therefore:
-
-```text
-CENTRAL SYSTEM
-      |
-      | Mission Package
-      v
-EDGE DEVICE
-      |
-      v
-Offline Intelligence
-```
-
----
-
-# 4.2 Mission Package
-
-The central platform creates a mission-specific package.
-
-It can contain:
-
-* relevant satellite imagery;
-* imagery embeddings;
-* vector index;
-* geographic data;
-* offline maps;
-* models;
-* metadata;
-* previous analysis;
-* provenance.
-
-The edge device receives only what is required.
-
----
-
-# 4.3 Edge Device
-
-The hardware should be designed around the workload rather than around consumer electronics.
-
-Potential architecture:
-
-```text
-+--------------------------------+
-|        EDGE-GEOINT NODE        |
-|                                |
-|  Display                        |
-|  Local UI                       |
-|                                |
-|  AI Accelerator                 |
-|  CPU                            |
-|  RAM                            |
-|  NVMe Storage                   |
-|                                |
-|  GNSS                           |
-|  Secure Storage                 |
-|                                |
-|  Battery                        |
-+--------------------------------+
-```
-
----
-
-# 4.4 Form Factor
-
-The initial prototype should use commercially available compute hardware.
-
-Possible form factors:
-
-### Prototype
-
-Rugged tablet / compact computer.
-
-### Field Prototype
-
-Rugged handheld.
-
-### Advanced Prototype
-
-Forearm-mounted terminal.
-
-### Future
-
-Wearable edge-computing platform.
-
-The wearable form factor is a **product differentiator**, not a prerequisite for PS compliance.
-
----
-
-# 4.5 Offline Intelligence
-
-The device should be able to perform selected operations without network access.
-
-For example:
-
-```text
-Satellite Imagery
-       |
-       v
-Local Search
-       |
-       v
-Relevant Locations
-       |
-       v
-Local Temporal Analysis
-       |
-       v
-Evidence
-```
-
-The device does not need to run the largest foundation model.
-
-Instead:
-
-```text
-SERVER
-
-Heavy Models
-Large Archive
-Complex Processing
-        |
-        v
-Mission Package
-        |
-        v
-
-EDGE
-
-Lightweight Models
-Relevant Imagery
-Local Index
-Fast Inference
-```
-
-This is a critical architecture decision.
-
----
-
-# 4.6 Secure-by-Design Hardware
-
-The platform should not claim:
-
-> "The device cannot be hacked."
-
-Instead, it should claim:
-
-> "The device is purpose-built with a significantly reduced attack surface compared with a general-purpose computing platform."
-
-Potential features:
-
-* minimal operating environment;
-* encrypted storage;
-* secure boot;
-* signed software;
-* signed model packages;
-* disabled unnecessary services;
-* controlled updates;
-* audit logs;
-* local authentication.
-
----
-
-# 4.7 Synchronisation
-
-When connectivity becomes available:
-
-```text
-EDGE
- |
- | New observations
- | Analyst decisions
- | Local analysis
- v
-CENTRAL
-```
-
-The system preserves the origin of every observation.
-
----
-
-# 4.8 Hardware Success Criteria
-
-Phase 2 is complete when:
-
-* a Mission Package can be generated;
-* the package can be transferred to the edge device;
-* the device operates without network access;
-* local search works;
-* selected AI workloads work locally;
-* analyst observations can be stored;
-* the observations can later be synchronised;
-* provenance is preserved.
-
----
-
-# 5. Phase 3 — ADVANCED
-
-# "UNDERSTAND — The Phenomenal USP"
-
-This phase should differentiate EDGE-GEOINT from a conventional satellite-image search platform.
-
-The objective is to move from:
-
-> **"Search the imagery."**
-
-to:
-
-> **"Continuously build intelligence from the imagery."**
-
----
-
-# 5.1 Persistent Earth Intelligence
-
-Instead of treating every query independently, the platform builds a temporal understanding of locations.
-
-```text
-             LOCATION
-                 |
-     +-----------+-----------+
-     |           |           |
-   2021        2023        2026
-     |           |           |
-     +-----------+-----------+
-                 |
-          Intelligence
-            Timeline
-```
-
-The platform understands:
-
-* what existed;
-* what appeared;
-* what disappeared;
-* what expanded;
-* what contracted;
-* when it changed;
-* whether the change persisted.
-
----
-
-# 5.2 "Tell Me What Changed"
-
-Instead of requiring:
-
-```text
-AOI
-+
-Date A
-+
-Date B
-```
-
-the analyst can ask:
-
-> "Tell me what changed here over the last three years."
-
-The system automatically:
-
-1. retrieves historical observations;
-2. evaluates image quality;
-3. aligns observations;
-4. detects candidate changes;
-5. suppresses environmental effects;
-6. constructs a timeline;
-7. ranks significant changes;
-8. presents evidence.
-
----
-
-# 5.3 Earliest Evidence Engine
-
-A particularly powerful capability is:
-
-> **When did this change actually begin?**
-
-Instead of only saying:
-
-> "Construction detected."
-
-the system produces:
-
-```text
-2021 — No evidence
-2022 — No evidence
-2023 — Possible activity
-2024 — Strong evidence
-2025 — Confirmed expansion
-```
-
-This converts change detection into **temporal reasoning**.
-
----
-
-# 5.4 Anomaly Intelligence
-
-The system learns what is normal for a location.
-
-```text
-Historical Data
-       |
-       v
-Normal Baseline
-       |
-       v
-New Observation
-       |
-       v
-Deviation
-       |
-       v
-Anomaly Candidate
-```
-
-The output is not:
-
-> "This is definitely suspicious."
-
-Instead:
-
-> "This observation deviates significantly from the historical pattern and requires analyst review."
-
-This distinction is essential.
-
----
-
-# 5.5 Self-Expanding Discovery
-
-This is one of the strongest potential USPs.
-
-Suppose an analyst identifies one interesting location.
-
-The system automatically asks:
-
-> "What other locations in the archive exhibit similar characteristics?"
-
-It can combine:
-
-* visual similarity;
-* semantic similarity;
-* temporal behaviour;
-* geographic context.
-
-```text
-                  Reference Site
-                       |
-          +------------+------------+
-          |            |            |
-      Visual        Semantic      Temporal
-     Similarity    Similarity     Behaviour
-          |            |            |
-          +------------+------------+
-                       |
-                       v
-               Related Locations
-```
-
-The analyst doesn't need to manually search every location.
-
----
-
-# 5.6 Multimodal Intelligence Queries
-
-The advanced system should eventually allow:
-
-```text
-TEXT
-IMAGE
-LOCATION
-TIME
-METADATA
-CHANGE HISTORY
-```
-
-to participate in one query.
-
-Example:
-
-> "Find locations visually similar to this image where significant structural development occurred during the selected period."
-
-This is much more powerful than conventional keyword search.
-
----
-
-# 5.7 Analyst-in-the-Loop Intelligence
-
-The analyst becomes part of the system.
-
-If an analyst repeatedly confirms or rejects certain results, the system can learn relevance patterns.
-
-```text
-AI Result
-    |
-    v
-Analyst
-    |
- +--+--+
- |     |
-YES    NO
- |     |
- +--+--+
-    |
-    v
-Feedback
-    |
-    v
-Better Ranking
-```
-
-Possible mechanisms:
-
-* relevance feedback;
-* reranking;
-* hard-negative mining;
-* confidence calibration;
-* query refinement.
-
----
-
-# 5.8 Intelligence Graph
-
-A future version can connect observations into an intelligence graph.
-
-```text
-                 LOCATION
-                    |
-          +---------+---------+
-          |         |         |
-       Imagery    Change    Sensor
-          |         |         |
-          +----+----+----+----+
-               |
-          Temporal Event
-               |
-       Similar Locations
-               |
-          Analyst Evidence
-```
-
-This enables questions such as:
-
-> "Show me locations exhibiting the same change pattern."
-
-rather than simply:
-
-> "Show me similar images."
-
----
-
-# 5.9 Edge + Central Intelligence
-
-The final architecture becomes:
-
-```text
-                    CENTRAL
-                       |
-          +------------+------------+
-          |            |            |
-        Archive      Models      Intelligence
-          |            |            |
-          +------------+------------+
-                       |
-                 Mission Package
-                       |
-             +---------+---------+
-             |         |         |
-           EDGE A    EDGE B    EDGE C
-             |         |         |
-             +---------+---------+
-                       |
-                  Synchronisation
-                       |
-                    CENTRAL
-```
-
-Each edge node can operate independently.
-
-The central system learns from approved observations returned from the field.
-
----
-
-# 5.10 Ultimate Product Vision
-
-The final system should evolve from:
-
-### Version 1
-
-> "Search my satellite imagery."
-
-to:
-
-### Version 2
-
-> "Take this intelligence with me."
-
-to:
-
-### Version 3
-
-> "Tell me what changed, what is unusual, and where else I should look."
-
-That progression is the core product strategy.
-
----
-
-# 6. Product Differentiation
-
-| Capability                       | Conventional EO Catalogue | EDGE-GEOINT     |
-| -------------------------------- | ------------------------- | --------------- |
-| Metadata search                  | Yes                       | Yes             |
-| Text semantic search             | Limited/No                | Yes             |
-| Image similarity                 | Limited                   | Yes             |
-| Change detection                 | Some systems              | Yes             |
-| False-alarm suppression          | Variable                  | Core capability |
-| Earliest change                  | Limited                   | Yes             |
-| Similar-site discovery           | Limited                   | Yes             |
-| Analyst feedback                 | Variable                  | Yes             |
-| Offline operation                | Rare                      | Core            |
-| Edge deployment                  | Rare                      | Core            |
-| Mission packages                 | Rare                      | Yes             |
-| Persistent temporal intelligence | Limited                   | Advanced USP    |
-| Multimodal reasoning             | Emerging                  | Advanced USP    |
-| Anomaly intelligence             | Emerging                  | Advanced USP    |
-| Distributed edge intelligence    | Rare                      | Future USP      |
-
----
-
-# 7. Product Positioning
-
-The recommended positioning is:
-
-> **EDGE-GEOINT is an offline-first Earth-observation intelligence platform that helps analysts FIND relevant locations, CARRY mission-specific intelligence to disconnected environments, and UNDERSTAND how locations and patterns evolve over time.**
-
-The product should **not** be positioned simply as:
-
-* a satellite image viewer;
-* an AI chatbot for maps;
-* a military target detector;
-* a rugged smartphone.
-
-The core asset is the **intelligence architecture**.
-
----
-
-# 8. Product Philosophy
-
-Three principles govern the product:
-
-### FIND
-
-Search the world's imagery by meaning.
-
-### CARRY
-
-Bring intelligence to disconnected environments.
-
-### UNDERSTAND
-
-Turn observations into persistent temporal intelligence.
-
-```text
-             FIND
-              |
-              v
-            CARRY
-              |
-              v
-          UNDERSTAND
-              |
-              v
-       Better Intelligence
-              |
-              +----> FIND
-```
-
-This creates a continuous intelligence loop rather than a one-time search application.
+This project is licensed under the **MIT License**.
