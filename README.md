@@ -1,389 +1,1134 @@
-# 🛡️ AI Data Readiness Platform (AegisMind Engine)
+# PRD — EDGE-GEOINT
+## Semantic Retrieval and Multi-Temporal Change Analysis of Satellite Imagery
 
-> **An Explainable Pre-Machine Learning Diagnostic, Automated Remediation & Model Benchmarking Platform**  
-> *Bridging the critical gap between raw, messy data and robust, production-grade machine learning models.*
-
----
-
-## 📑 Table of Contents
-
-1. [Executive Overview](#-executive-overview)
-2. [End-to-End System Architecture & Execution Lifecycle](#-end-to-end-system-architecture--execution-lifecycle)
-3. [Mathematical Foundations & 0–100 Data Health Score](#-mathematical-foundations--0100-data-health-score)
-4. [Diagnostic & Quality Detection Suite](#-diagnostic--quality-detection-suite)
-5. [3-Stage Explainable AI Recommendation Engine](#-3-stage-explainable-ai-recommendation-engine)
-6. [Safe-Order 12-Step Transformation Execution Engine](#-safe-order-12-step-transformation-execution-engine)
-7. [Cross-Validation & Model Benchmarking Engine](#-cross-validation--model-benchmarking-engine)
-8. [Export Hub & Reproducible Artifact Generation](#-export-hub--reproducible-artifact-generation)
-9. [Project Directory & File Structure](#-project-directory--file-structure)
-10. [REST API Data Contracts & Endpoint Reference](#-rest-api-data-contracts--endpoint-reference)
-11. [Installation & Local Setup Guide](#-installation--local-setup-guide)
+**Version:** 1.0  
+**Status:** Proposed / SIH Prototype  
+**Domain:** Defence GEOINT / Earth Observation  
+**Deployment:** On-premises, offline-capable  
+**Primary data:** Sentinel-2 Level-2A, multi-temporal multispectral GeoTIFF/COG  
+**Primary geography:** India
 
 ---
 
-## 📌 Executive Overview
+## 1. Product Overview
 
-Most modern AutoML frameworks attempt to solve: **"Which algorithm or hyperparameter configuration gives the highest test accuracy?"**
+EDGE-GEOINT is an on-premises geospatial intelligence platform that turns a large archive of multi-temporal satellite imagery into a searchable, change-aware intelligence system.
 
-However, in real-world data science, **garbage in equals garbage out**. Real datasets suffer from missingness, exact duplicate rows, extreme outliers, unparsed datetime strings, mixed measurement units, severe class imbalance, high-cardinality IDs, and multicollinearity. 
+The analyst can:
+- search imagery using natural language;
+- search by an example image/location and find similar sites;
+- combine semantic search with spatial, temporal and sensor filters;
+- analyse a location across multiple observations;
+- identify supported changes such as construction, clearance, road development and water-extent variation;
+- estimate the earliest usable observation supporting a change;
+- suppress pseudo-changes caused by clouds, haze, shadows, snow, seasonality, illumination, viewing geometry, radiometric inconsistency and imperfect co-registration;
+- receive ranked candidates with confidence, evidence and provenance;
+- validate/reject candidates and provide feedback;
+- incrementally ingest new imagery without rebuilding the complete index;
+- operate locally after models, libraries and datasets are staged.
 
-The **AI Data Readiness Platform** solves the prerequisite question:  
-👉 **"Is this dataset statistically viable for machine learning, what specific defects exist, why do they matter, and how can we safely transform it?"**
-
-### Core Principles
-* **100% Explainable & Grounded:** Every recommendation is computed with statistical heuristics and justified using LLM explanations (Gemini / OpenAI) with deterministic fallback templates.
-* **Human-in-the-Loop Governance:** Destructive operations (dropping columns, dropping rows) are never executed without explicit user opt-in.
-* **Mathematical Sequence Integrity:** Transformations run in a mathematically safe order to avoid data leakage and distorted statistics.
-* **Full Pipeline Reproducibility:** Generates standalone Python/Scikit-Learn pipeline scripts, executive PDF audit reports, and model-ready cleaned CSVs.
+This is aligned with the SIH problem statement.
 
 ---
 
-## 🏗️ End-to-End System Architecture & Execution Lifecycle
+## 2. Problem Statement
 
-```mermaid
-flowchart TD
-    A["Raw Dataset Upload (.csv / .xlsx)"] --> B["Automated Type Profiling & Schema Inference"]
-    B --> C["User Defines Objective (Target Column + Problem Type)"]
-    C --> D["Comprehensive Diagnostic Profiling & Quality Scan"]
-    D --> E["Mathematical 0–100 Data Health Score Calculation"]
-    D --> F["3-Stage Explainable Remediation Engine (Stats -> Rules -> LLM Justifications)"]
-    E & F --> G["Interactive Diagnostic Dashboard & Approval Checklist"]
-    G -->|User Toggles & Approves Fixes| H["12-Step Safe-Order Transformation Execution Pipeline"]
-    H --> I["Post-Cleaning Health Score & Before/After Metric Diff Calculation"]
-    H --> J["3-Fold Cross-Validated ML Model Leaderboard Benchmarking"]
-    H --> K["Artifact Generation Hub (Cleaned CSV, Python Script, PDF Audit, JSON Manifest)"]
+Conventional satellite-imagery workflows are primarily metadata-driven. Analysts generally search using coordinates, acquisition date, platform/sensor, product type or area of interest before inspecting imagery.
+
+This creates:
+1. **Discovery problem:** analysts may need prior knowledge of where and when to look.
+2. **Semantic problem:** large archives are difficult to search by actual imagery content or to mine for similar locations.
+3. **Temporal reliability problem:** image differences may represent acquisition conditions rather than genuine ground change.
+
+The product shifts the workflow from:
+
+> Find imagery → manually inspect → manually compare → interpret
+
+to:
+
+> Describe requirement → retrieve candidates → collect temporal evidence → infer semantic change → suppress pseudo-change → rank evidence → analyst validates.
+
+---
+
+## 3. Product Goals
+
+### G1 — Semantic Retrieval
+Support natural-language search such as:
+- “newly constructed structures near a river”
+- “large vehicle concentrations on open ground”
+- “industrial facilities near major roads”
+
+### G2 — Image-to-Image Retrieval
+Allow an analyst to select an interesting region and discover similar sites.
+
+### G3 — Multi-Temporal Change Analysis
+Analyse a selected area across a requested time window.
+
+### G4 — Semantic Change Understanding
+Infer meaningful region-level change rather than treating pixel difference as proof.
+
+### G5 — False-Alarm Suppression
+Handle seasonality, illumination, clouds, haze, snow, shadows, sensor/view-angle differences, radiometric inconsistency and registration error.
+
+### G6 — Evidence-Based Confidence
+Combine multiple evidence signals into a confidence/uncertainty estimate.
+
+### G7 — Analyst-Centric Review
+Show before/after evidence, timeline, location, source, confidence and processing provenance.
+
+### G8 — Scalable Offline Operation
+Support local vector indexing, incremental ingestion and no runtime cloud/API dependency during evaluation.
+
+---
+
+## 4. Non-Goals
+
+The MVP will not:
+- claim perfect automated intelligence interpretation;
+- treat every pixel difference as a real-world change;
+- replace analyst judgement;
+- train a new EO foundation model from scratch;
+- detect arbitrary unsupported change categories;
+- depend on external inference APIs;
+- claim pretrained models are automatically optimized for Indian terrain without validation.
+
+---
+
+## 5. Design Principles
+
+### P1 — Evidence over single-pixel classification
+A pixel can represent multiple materials/objects. Decisions must use region, spectral, spatial and temporal evidence.
+
+### P2 — Semantic change over raw difference
+Target:
+
+> semantic state at T1 → semantic state at T2 → supported transition
+
+rather than:
+
+> pixel(T1) != pixel(T2) → change.
+
+### P3 — Pretrained foundations + task-specific intelligence
+Use pretrained EO/VLM models for general representations; develop the temporal reasoning, evidence fusion and uncertainty components specific to this problem.
+
+### P4 — Analyst in the loop
+AI identifies and ranks candidates; the analyst validates important detections.
+
+### P5 — Provenance first
+Every result must be traceable to source scenes and processing/model versions.
+
+### P6 — Offline first
+Core evaluation functionality must work locally after staging.
+
+---
+
+## 6. Data Strategy
+
+### 6.1 Primary dataset
+
+**Sentinel-2 Level-2A** for selected Indian AOIs over approximately 5–10 years where coverage is usable.
+
+Do not attempt to download all of India. Build a representative research archive.
+
+### 6.2 AOI diversity
+
+Recommended initial AOIs:
+- urban/industrial;
+- agricultural;
+- arid/desert;
+- mountainous;
+- coastal/riverine.
+
+### 6.3 Source format
+
+Retain original source products for provenance and create standardized GeoTIFF/COG analysis products.
+
+### 6.4 Prithvi-compatible six-band representation
+
+For the documented Prithvi-EO-2.0 HLS configuration, the six channels are:
+
+- B02 — Blue
+- B03 — Green
+- B04 — Red
+- B05 — NIR narrow
+- B06 — SWIR 1
+- B07 — SWIR 2
+
+Therefore, use these corresponding Sentinel-2 bands for the Prithvi-compatible product.
+
+Do not silently substitute B08/B11/B12 while claiming exact Prithvi six-band compatibility.
+
+Additional Sentinel-2 bands may be retained for auxiliary experiments.
+
+### 6.5 Resolution
+
+Preserve source resolution. Resample model inputs to a documented common grid.
+
+Because the pretrained Prithvi model was trained using HLS at 30 m granularity, direct pretrained-model experiments should use a compatible 30 m analysis grid unless an adaptation experiment explicitly changes this.
+
+All resampling must be recorded in provenance.
+
+### 6.6 Quality information
+
+Retain/use:
+- Scene Classification Layer (SCL);
+- cloud information where available;
+- snow/ice information where available;
+- acquisition date/time;
+- sensor/platform;
+- CRS;
+- geotransform;
+- resolution;
+- source/product identifier.
+
+---
+
+## 7. High-Level Architecture
+
+```text
+                 SENTINEL-2 L2A ARCHIVE
+                          |
+                          v
+                 GeoTIFF/COG Ingestion
+                          |
+                          v
+             Geospatial + Quality Processing
+                          |
+             +------------+-------------+
+             |                          |
+             v                          v
+       RGB Representation          6-Band EO Data
+             |                          |
+             v                          v
+        RemoteCLIP                 Prithvi-EO-2.0
+      Semantic Encoder            300M-TL / baseline
+             |                          |
+             v                          v
+      Semantic Embeddings          EO Features
+             |                          |
+             +------------+-------------+
+                          |
+                          v
+                  Local Vector Index
+                          |
+                          v
+                Candidate Retrieval
+                          |
+                          v
+              Multi-Temporal Evidence
+                          |
+                          v
+             OUR SEMANTIC TEMPORAL MODEL
+                          |
+                          v
+             Change Type + Localization
+                          |
+                          v
+                OUR EVIDENCE FUSION
+                          |
+                          v
+              Confidence / Uncertainty
+                          |
+                          v
+                 Analyst Review Queue
+                          |
+                          v
+                 Feedback / Reranking
 ```
 
 ---
 
-## 🧮 Mathematical Foundations & 0–100 Data Health Score
+## 8. Model Stack
 
-The platform computes a **0–100 composite Data Health Score** ($S_{\text{composite}}$) along with 6 individual sub-scores that quantify data readiness.
+| Component | Recommended approach | Purpose | Build from scratch? |
+|---|---|---|---|
+| Semantic retrieval | RemoteCLIP + optional lightweight adaptation | Text↔image and image↔image retrieval | No |
+| EO representation | Prithvi-EO-2.0-300M-TL | Multispectral/temporal features | No |
+| Region understanding | Foundation features + lightweight head | Semantic regions/states | Head only |
+| Temporal change model | Custom temporal head | Semantic transitions and change classes | Yes |
+| False-change suppression | Custom evidence fusion | Reject pseudo-change | Yes |
+| Confidence | Custom uncertainty/calibration layer | Trust estimation | Yes |
+| Similar-site search | FAISS/Qdrant + clustering | Similar locations | No neural model needed |
+| Analyst reranking | Lightweight learning-to-rank | Use analyst feedback | Small custom model |
 
-```math
-S_{\text{composite}} = \sum_{i=1}^{6} w_i \cdot S_i
-$$
+---
+
+## 9. RemoteCLIP
+
+### Role
+Semantic image-text retrieval and image-to-image retrieval.
+
+### Input
+RGB derived from Sentinel-2:
+- Red = B04
+- Green = B03
+- Blue = B02
+
+### Output
+Normalized embeddings.
+
+### Workflow
+
+```text
+Natural-language query
+        ↓
+RemoteCLIP text encoder
+        ↓
+Query embedding
+        ↓
+Local vector search
+        ↓
+Top-K candidate tiles
 ```
 
-Where the weights $w_i$ and sub-scores $S_i$ are mathematically defined as follows:
+For image search:
 
-| Sub-Score Dimension ($S_i$) | Weight ($w_i$) | Mathematical Formula & Penalties | Thresholds & Risk Criteria |
-| :--- | :---: | :--- | :--- |
-| **1. Missingness Score** | **25%** ($0.25$) | $S_{\text{miss}} = \max\left(0, 100 - (\text{overall\_missing\_pct} \times 2.5)\right)$ | Penalizes total missing values. $>40\%$ missing reduces sub-score to $0$. |
-| **2. Duplication Score** | **15%** ($0.15$) | $S_{\text{dup}} = \max\left(0, 100 - (\text{duplicate\_rows\_pct} \times 5.0)\right)$ | $>20\%$ duplicate rows reduces sub-score to $0$ to prevent severe train-test leakage. |
-| **3. Outlier Score** | **15%** ($0.15$) | $S_{\text{out}} = \max\left(0, 100 - (\overline{\text{outlier\_pct}} \times 3.0 + N_{\text{outlier\_cols}} \times 4.0)\right)$ | Evaluates percentage of extreme points beyond $1.5 \times \text{IQR}$ across numeric columns. |
-| **4. Domain Validity Score** | **15%** ($0.15$) | $S_{\text{val}} = \max\left(0, 100 - (N_{\text{invalid\_cols}} \times 20.0)\right)$ | Penalizes negative values in strictly non-negative columns (age, salary, price, count). |
-| **5. Target Balance Score** | **15%** ($0.15$) | $S_{\text{bal}} = \max\left(0, 100 - (\text{majority\_ratio} - 0.5) \times 160.0\right)$ | For classification: $50:50 \rightarrow 100$, $95:5 \rightarrow 28$, $100:0 \rightarrow 20$. Defaults to $100.0$ for regression. |
-| **6. Feature Quality Score** | **15%** ($0.15$) | $S_{\text{feat}} = \max\left(0, 100 - (N_{\text{collinear\_pairs}} \times 10.0 + N_{\text{constant\_cols}} \times 15.0)\right)$ | Penalizes features with Pearson correlation $\|r\| > 0.85$ or near-zero variance ($\sigma^2 = 0$). |
-
-### Letter Grade Classifications
-* **`A (90–100)` — Excellent Readiness:** Data is model-ready with negligible defects.
-* **`B (80–89.9)` — Good Readiness:** Minor missingness or mild outliers present; standard pipelines will converge.
-* **`C (70–79.9)` — Fair (Needs Cleaning):** Moderate data quality defects that risk degrading gradient steps or accuracy.
-* **`D (60–69.9)` — Poor (High Risk):** Significant data leaks, heavy duplication, or severe multicollinearity.
-* **`F (<60)` — Critical Quality Defects:** Unusable without structural remediation.
-
----
-
-## 🔍 Diagnostic & Quality Detection Suite
-
-The detector module ([`detector.py`](file:///c:/Users/Arif%20Choudhary/OneDrive/Desktop/Major%20project/backend/app/engine/detector.py)) runs a multi-pass statistical scan:
-
-### 1. Inferred Column Type Classification
-Each column is dynamically categorized into one of 6 semantic types:
-* **`numeric`**: Float or integer series with $>10$ unique numeric values.
-* **`categorical`**: Strings or low-cardinality integers ($\le 20$ unique categories).
-* **`boolean`**: Binary values (`{0, 1}`, `{'True', 'False'}`, `{'Yes', 'No'}`).
-* **`datetime`**: Dates matching standard ISO, timestamp, or slash formats.
-* **`id`**: Unique identifier columns (cardinality ratio $>0.98$ on string/integer series).
-* **`text`**: High-cardinality natural language or unformatted token sequences.
-
-### 2. Detection Algorithms & Heuristics
-
-* **Missing Values**:
-  * $\text{Missing Pct} > 50\%$ $\rightarrow$ Severity: **Critical** (Suggests feature elimination).
-  * $20\% < \text{Missing Pct} \le 50\%$ $\rightarrow$ Severity: **High** (Suggests advanced imputation or indicator flag).
-  * $0\% < \text{Missing Pct} \le 20\%$ $\rightarrow$ Severity: **Medium** (Suggests median/mode imputation).
-* **Exact Duplicate Rows**:
-  * Computes exact hash equality across all features using Pandas `df.duplicated()`.
-* **Statistical Outliers (Tukey's Fences)**:
-  * Lower Bound: $Q_1 - 1.5 \times \text{IQR}$
-  * Upper Bound: $Q_3 + 1.5 \times \text{IQR}$
-  * *Smart Filtering:* Skips columns representing calendar years, IDs, or columns with skewness $\approx 0$.
-* **Domain Validity & Mixed Units**:
-  * Detects negative numbers in non-negative keyword columns (`age`, `salary`, `income`, `price`, `cost`, `revenue`, `distance`, `fare`, `tenure`).
-  * Detects mixed unit strings (e.g. `"90 min"`, `"2 Seasons"`, `"120 km/h"`).
-* **Multicollinearity**:
-  * Computes the Pearson Correlation Matrix $R$. Any pair $(X_i, X_j)$ where $\|r_{ij}\| > 0.85$ triggers a collinearity warning.
-* **Class Imbalance**:
-  * For classification targets, computes the majority class percentage. Flags imbalances exceeding $70\%:30\%$.
-
----
-
-## 🧠 3-Stage Explainable AI Recommendation Engine
-
-```mermaid
-flowchart LR
-    S1["Stage 1: Deterministic Statistical Profile Extraction"] --> S2["Stage 2: Heuristic Rule Mapping (Action & Method)"]
-    S2 --> S3["Stage 3: LLM Plain-Language Justification (Gemini / OpenAI)"]
-    S3 --> S4["Explainable Recommendation Card"]
+```text
+Selected image/region
+        ↓
+RemoteCLIP image encoder
+        ↓
+Image embedding
+        ↓
+Vector search
+        ↓
+Similar locations
 ```
 
-### Stage 1: Deterministic Statistical Profiling
-Gathers raw column metrics: distribution skewness $\gamma_1$, missingness percentage, cardinality, variance, min, max, and correlation.
-
-### Stage 2: Heuristic Rule Mapping ([`rules.py`](file:///c:/Users/Arif%20Choudhary/OneDrive/Desktop/Major%20project/backend/app/engine/rules.py))
-Maps detected issues to standard Scikit-Learn remediation transformations:
-* High Missingness ($>50\%$) $\rightarrow$ `Drop Redundant / High-Missingness Feature`
-* Continuous Numeric Missingness $\rightarrow$ `Median Imputation (Skewed)` or `Mean Imputation (Normal)`
-* Categorical Missingness $\rightarrow$ `Mode Imputation` or `Constant Fill ('Unknown')`
-* Extreme Outliers $\rightarrow$ `IQR Winsorization / Capping (1.5x IQR)`
-* Non-Negative Domain Breach $\rightarrow$ `Zero-Clipping Transformation`
-* Collinear Pair $\rightarrow$ `Drop Redundant Collinear Feature`
-* High-Cardinality Categoricals $\rightarrow$ `Frequency / Target Encoding` or `Drop High-Cardinality ID`
-
-### Stage 3: Generative AI Justification ([`explainer.py`](file:///c:/Users/Arif%20Choudhary/OneDrive/Desktop/Major%20project/backend/app/engine/explainer.py))
-The system feeds the exact statistical parameters into an LLM (Google Gemini or OpenAI) to generate a high-clarity explanation answering:
-1. *Why does this defect degrade machine learning models?*
-2. *Why is this specific remediation algorithm the mathematically optimal choice?*
-3. *What is the exact impact on variance, bias, and inference?*
-
-> **Zero-Failure Fallback:** If API keys are missing or the network fails, the system seamlessly uses deterministic, high-accuracy statistical fallback templates so execution never halts.
+### Adaptation
+Benchmark zero-shot RemoteCLIP on Indian imagery first. If a domain gap is observed, use parameter-efficient/lightweight adaptation rather than retraining from scratch.
 
 ---
 
-## ⚙️ Safe-Order 12-Step Transformation Execution Engine
+## 10. Prithvi-EO-2.0
 
-When the user clicks **"Apply Fixes & Verify"**, transformations are applied in an immutable, mathematically safe order ([`executor.py`](file:///c:/Users/Arif%20Choudhary/OneDrive/Desktop/Major%20project/backend/app/engine/executor.py)):
+### Recommended starting model
+**Prithvi-EO-2.0-300M-TL**
 
-```mermaid
-graph TD
-    S1["1. Exact Deduplication"] --> S2["2. Datetime Feature Engineering"]
-    S2 --> S3["3. Mixed Unit Parsing"]
-    S3 --> S4["4. Delimited Token Multi-Hot Encoding"]
-    S4 --> S5["5. Invalid Domain Value Clipping"]
-    S5 --> S6["6. Drop Collinear & Unviable Features"]
-    S6 --> S7["7. Semantic Missing Value Imputation"]
-    S7 --> S8["8. High-Cardinality Binning & ID Filtering"]
-    S8 --> S9["9. Outlier Winsorization"]
-    S9 --> S10["10. Categorical One-Hot Encoding"]
-    S10 --> S11["11. StandardScaler Normalization"]
-    S11 --> S12["12. SMOTE Target Resampling"]
+### Role
+Multispectral Earth-observation representation and temporal feature extraction.
+
+The TL architecture uses spatiotemporal inputs and incorporates temporal/location information.
+
+### Input
+Chronological standardized six-band GeoTIFF sequence:
+
+```text
+T1.tif
+T2.tif
+T3.tif
+T4.tif
 ```
 
-### Why Execution Order Matters:
-1. **Deduplication First:** Prevents duplicate rows from distorting column medians, means, and standard deviations.
-2. **Datetime & Units Extracted Early:** Allows newly generated continuous features (e.g. `release_year`, `duration_minutes`) to participate in downstream imputation and scaling.
-3. **Dropping Features Before Imputation:** Avoids wasting compute power estimating values for columns destined to be removed.
-4. **Imputation Before Winsorization:** Ensures quantile computations ($Q_1, Q_3$) operate on full arrays without NaN pollution.
-5. **Encoding Before Scaling:** Converts categorical strings to binary columns so that numerical scaling normalizes all active inputs uniformly.
-6. **Resampling (SMOTE) Last:** Ensures synthetic minority oversampling occurs only on fully encoded, imputed, and scaled matrices.
+### Output
+EO latent features for downstream temporal reasoning.
+
+### Why pretrained?
+Training an EO foundation model from scratch is unnecessary and outside practical MVP scope.
+
+### Limitation
+Its pretrained representation must be validated on Indian Sentinel-2 data.
 
 ---
 
-## 🏆 Cross-Validation & Model Benchmarking Engine
+## 11. Custom Semantic Temporal Model
 
-Once the dataset is transformed, the platform automatically trains and benchmarks an ensemble of candidate algorithms ([`benchmark.py`](file:///c:/Users/Arif%20Choudhary/OneDrive/Desktop/Major%20project/backend/app/engine/benchmark.py)).
+This is the main task-specific model.
 
-### Cross-Validation Strategy
+### Purpose
+Infer semantic state transitions and meaningful change types.
 
-#### 1. Classification Problems
-* **Validation Method:** **`StratifiedKFold(n_splits=3, shuffle=True, random_state=42)`**
-* **Scoring Metric:** **Macro F1-Score** (`make_scorer(f1_score, average="macro", zero_division=0)`)
-* **Purpose:** Preserves exact class balance ratios across training and test splits to guard against misleading accuracy in imbalanced scenarios.
+Example:
 
-#### 2. Regression Problems
-* **Validation Method:** **`KFold(n_splits=3, shuffle=True, random_state=42)`**
-* **Scoring Metric:** **$R^2$ Score (Coefficient of Determination)** (`make_scorer(r2_score)`)
-* **Purpose:** Evaluates variance explanation across independent folds without distributional bias.
-
-### Benchmarked Model Pool
-
-```
-┌──────────────────────────────────────────────┬──────────────────────────────────────────────┐
-│ Classification Candidate Models              │ Regression Candidate Models                  │
-├──────────────────────────────────────────────┼──────────────────────────────────────────────┤
-│ • Random Forest Classifier (25 estimators)   │ • Random Forest Regressor (25 estimators)    │
-│ • XGBoost Classifier (if available)          │ • XGBoost Regressor (if available)           │
-│ • LightGBM Classifier (if available)         │ • LightGBM Regressor (if available)          │
-│ • Gradient Boosting Classifier               │ • Gradient Boosting Regressor                │
-│ • Logistic Regression (L2 Regularized)       │ • Ridge Regression (L2 Regularized)          │
-│ • Decision Tree Classifier (Max Depth = 5)   │ • Decision Tree Regressor (Max Depth = 5)    │
-│ • Support Vector Machine (RBF Kernel)        │ • Support Vector Regressor (SVR RBF Kernel)  │
-└──────────────────────────────────────────────┴──────────────────────────────────────────────┘
+```text
+2022 → Open land
+2023 → Open land
+2024 → Construction activity
+2025 → Permanent structure
+2026 → Permanent structure
 ```
 
-The output yields a ranked **Leaderboard** detailing:
-* Model Rank & Name
-* Cross-Validated Score ($\text{Macro F1}$ or $R^2$)
-* Training Execution Latency ($\text{seconds}$)
-* Suitability Rating (`High` / `Moderate` / `Low`)
-* Architectural Description & Rationale
+Output:
+
+```text
+Change type: New construction
+Earliest supporting observation: 2024
+```
+
+### Recommended design
+Start with a lightweight temporal transformer/temporal-attention module over per-date EO features.
+
+Input:
+
+```text
+F1, F2, F3, ... Fn
+```
+
+Output:
+- semantic state representation;
+- change localization;
+- change type;
+- temporal transition score.
+
+Initial classes:
+- construction;
+- clearance;
+- road development;
+- water-extent variation;
+- expansion;
+- contraction.
 
 ---
 
-## 📦 Export Hub & Reproducible Artifact Generation
+## 12. Evidence Fusion / False-Alarm Suppression
 
-Upon execution, the engine compiles 4 production-grade export artifacts:
+This is a core custom component.
 
-1. **Cleaned Dataset (`.csv`):** Fully sanitized, transformed, and model-ready tabular file.
-2. **Standalone Python Pipeline Script (`.py`):** Self-contained, executable Scikit-Learn script containing the exact sequence of transformations for local integration or CI/CD pipelines.
-3. **Executive PDF Audit Report (`.pdf`):** Formal ReportLab-generated audit document with Data Health Score dials, issue breakdowns, before/after metric deltas, and model recommendations.
-4. **Machine-Readable JSON Manifest (`.json`):** Full telemetry metadata containing column profiles, statistical issues, applied remediation rules, and benchmarking leaderboards.
+### Inputs
+- semantic change score;
+- temporal consistency;
+- spectral consistency;
+- spatial consistency;
+- cloud/quality score;
+- shadow/snow indicators;
+- registration quality;
+- seasonal/illumination indicators;
+- cross-date agreement;
+- optional cross-sensor agreement.
+
+### Concept
+
+```text
+Semantic evidence --------Temporal evidence ---------Spectral evidence ----------> Evidence Fusion
+Quality evidence ----------/
+Registration evidence -----/
+                              |
+                              v
+                    Genuine Change Score
+```
+
+A candidate should become high confidence only when multiple evidence sources support it.
 
 ---
 
-## 📂 Project Directory & File Structure
+## 13. Confidence / Uncertainty
 
+The system must express uncertainty instead of forcing binary decisions.
+
+Example:
+
+```text
+Candidate: New structure
+
+Semantic evidence:       Strong
+Temporal persistence:    Strong
+Image quality:           High
+Registration quality:    Good
+Spectral consistency:    Strong
+
+Overall confidence:      HIGH
+Earliest evidence:       June 2024
 ```
-Major project/
-├── backend/                               # FastAPI Python Backend
-│   ├── app/
-│   │   ├── core/
-│   │   │   └── config.py                  # Environment settings, CORS, LLM API keys
-│   │   ├── engine/                        # Core Data Intelligence Engines
-│   │   │   ├── profiler.py                # Type inference & summary statistics
-│   │   │   ├── detector.py                # Multi-pass data defect detection
-│   │   │   ├── scorer.py                  # 0–100 Data Health Score algorithm
-│   │   │   ├── rules.py                   # Heuristic recommendation generator
-│   │   │   ├── explainer.py               # AI justifications (Gemini / OpenAI)
-│   │   │   ├── executor.py                # 12-Step safe-order transformation pipeline
-│   │   │   ├── benchmark.py               # 3-Fold cross-validation model evaluator
-│   │   │   └── reporter.py                # PDF ReportLab generator
-│   │   ├── routers/                       # REST API Route Controllers
-│   │   │   ├── ingestion.py               # File upload & profile endpoints
-│   │   │   ├── diagnosis.py               # Objective & health diagnosis
-│   │   │   ├── remediation.py             # Transformation pipeline execution
-│   │   │   └── export.py                  # Download & artifact endpoints
-│   │   └── main.py                        # FastAPI application entrypoint
-│   ├── storage/                           # Ingested datasets & export artifacts
-│   ├── requirements.txt                   # Python dependencies
-│   └── .env                               # Environment configurations
-│
-├── frontend/                              # Next.js Turborepo Workspace
-│   ├── apps/
-│   │   ├── dashboard/                     # Main Application UI
-│   │   │   └── src/
-│   │   │       ├── app/                   # App Router pages & global styles
-│   │   │       │   ├── page.tsx           # Step-by-step diagnostic workflow
-│   │   │       │   └── globals.css        # Design tokens & modern light theme
-│   │   │       ├── components/            # UI Components
-│   │   │       │   ├── Header.tsx         # Platform navbar & dataset indicator
-│   │   │       │   ├── Stepper.tsx        # 5-stage progress indicator
-│   │   │       │   ├── UploadStep.tsx     # Drag-and-drop ingestion zone
-│   │   │       │   ├── ObjectiveStep.tsx  # Target column & problem selector
-│   │   │       │   ├── HealthScoreGauge.tsx # Radial SVG health score meter
-│   │   │       │   ├── ProfileTable.tsx   # Feature profiling matrix table
-│   │   │       │   ├── RecommendationChecklist.tsx # Explainable fix approvals
-│   │   │       │   ├── BeforeAfterDiff.tsx # Before vs after delta comparison
-│   │   │       │   ├── ModelLeaderboard.tsx # Ranked ML model benchmark cards
-│   │   │       │   └── ExportHub.tsx      # Artifact download hub
-│   │   │       └── services/
-│   │   │           └── api.ts             # Axios API client & data interfaces
-│   │   └── landing/                       # Product Landing & Feature Showcase
-│   ├── package.json                       # Turborepo root configuration
-│   └── turbo.json                         # Turborepo pipeline caching
-│
-└── README.md                              # Complete System Documentation
+
+If evidence conflicts:
+
+```text
+Status: Ambiguous
+Reason: insufficient evidence
+```
+
+Confidence must be calibrated and evaluated on held-out data.
+
+---
+
+## 14. Retrieval and Indexing
+
+### Vector index
+Use a locally deployable solution:
+- FAISS for a lightweight prototype; or
+- Qdrant for a fuller local service.
+
+Selection criteria:
+- offline operation;
+- metadata filtering;
+- incremental insertion;
+- latency;
+- memory/storage footprint.
+
+### Indexed record
+
+```text
+embedding_id
+scene_id
+tile_id
+AOI_id
+acquisition_date
+sensor
+CRS
+bounding_box
+resolution
+source_path
+quality_score
+cloud_score
+model_name
+model_version
+preprocessing_version
+embedding_version
+```
+
+### Search
+Semantic:
+```text
+Text → embedding → vector search → metadata filters → candidates
+```
+
+Image:
+```text
+Image → embedding → vector search → similar locations
 ```
 
 ---
 
-## 🔌 REST API Data Contracts & Endpoint Reference
+## 15. Multi-Temporal Pipeline
 
-### Base URL: `http://localhost:8000/api/v1`
+For each candidate:
 
-| Method | Endpoint | Description | Request Payload / Params | Response Payload |
-| :--- | :--- | :--- | :--- | :--- |
-| `POST` | `/datasets/upload` | Ingest raw CSV or Excel dataset | `multipart/form-data` (`file`) | `DatasetSummary` (ID, rows, cols, preview sample) |
-| `POST` | `/diagnose` | Run full diagnostic profiling & AI fixes | `{"dataset_id": "...", "problem_type": "...", "target_column": "..."}` | `DiagnosticResponse` (Profile, Health Score, Recommendations) |
-| `POST` | `/execute` | Run safe-order cleaning & benchmarking | `{"dataset_id": "...", "approved_recommendation_ids": [...]}` | `ExecutionResult` (Before/After Score, Leaderboard, Deltas) |
-| `GET` | `/export/csv/{dataset_id}` | Download model-ready CSV | Path Parameter: `dataset_id` | File download (`.csv`) |
-| `GET` | `/export/pipeline/{dataset_id}`| Download standalone Python code | Path Parameter: `dataset_id` | File download (`.py`) |
-| `GET` | `/export/pdf/{dataset_id}` | Download executive PDF audit | Path Parameter: `dataset_id` | File download (`.pdf`) |
-| `GET` | `/export/manifest/{dataset_id}`| Download machine-readable manifest | Path Parameter: `dataset_id` | JSON payload (`manifest.json`) |
+1. retrieve usable observations in the requested time window;
+2. sort chronologically;
+3. apply quality masks;
+4. co-register observations;
+5. normalize as required;
+6. generate EO features;
+7. infer semantic states;
+8. detect transitions;
+9. classify supported change;
+10. estimate earliest supporting observation;
+11. calculate confidence;
+12. present evidence to analyst.
 
----
-
-## 🚀 Installation & Local Setup Guide
-
-### Prerequisites
-* **Python 3.10+** (Python 3.11 recommended)
-* **Node.js 18+** & **npm 9+**
-* Optional: Gemini API Key (`GEMINI_API_KEY`) or OpenAI API Key (`OPENAI_API_KEY`)
+Raw image subtraction may be shown as diagnostic evidence but must not be the sole decision rule.
 
 ---
 
-### Step 1: Backend Setup
+## 16. Geospatial Preprocessing
 
-1. Open terminal and navigate to the backend directory:
-   ```bash
-   cd backend
-   ```
+### Validation
+- CRS;
+- dimensions;
+- band order;
+- nodata;
+- acquisition date;
+- reflectance/scaling metadata.
 
-2. Create and activate a Python virtual environment:
-   ```bash
-   # Windows (PowerShell)
-   python -m venv venv
-   .\venv\Scripts\Activate.ps1
+### Reprojection
+Use a consistent analysis grid.
 
-   # macOS / Linux
-   python3 -m venv venv
-   source venv/bin/activate
-   ```
+### Co-registration
+Align temporal observations and record transformation/residual error.
 
-3. Install required Python packages:
-   ```bash
-   pip install -r requirements.txt
-   ```
+### Resampling
+Standardize required bands to the target model grid.
 
-4. Configure your `.env` file in the `backend/` folder:
-   ```env
-   PROJECT_NAME="AI Data Readiness Platform"
-   API_V1_STR="/api/v1"
-   BACKEND_CORS_ORIGINS=["http://localhost:3000","http://localhost:3001"]
+### Quality masking
+Mask invalid/cloud/shadow/snow/unusable pixels as appropriate.
 
-   # Optional: AI Reasoning API Keys (Defaults to statistical template fallback if omitted)
-   GEMINI_API_KEY="your-gemini-api-key-here"
-   OPENAI_API_KEY=""
-   ```
+### Normalization
+Apply model-required scaling/normalization.
 
-5. Start the FastAPI backend server:
-   ```bash
-   uvicorn app.main:app --reload --port 8000
-   ```
-   * *Swagger API Interactive Docs:* [http://localhost:8000/docs](http://localhost:8000/docs)
-   * *API Health Check:* [http://localhost:8000/health](http://localhost:8000/health)
+### Tiling
+Create manageable overlapping tiles and retain geospatial transforms.
 
 ---
 
-### Step 2: Frontend Setup
+## 17. Analyst Interface
 
-1. Open a new terminal and navigate to the frontend directory:
-   ```bash
-   cd frontend
-   ```
+Each candidate should show:
 
-2. Install Node dependencies:
-   ```bash
-   npm install
-   ```
+### Candidate summary
+- location;
+- query relevance;
+- change type;
+- confidence;
+- earliest supporting date;
+- latest observation;
+- number of usable observations.
 
-3. Start the Next.js development server:
-   ```bash
-   # Start all applications via Turborepo
-   npm run dev
+### Evidence
+- before;
+- intermediate dates;
+- after;
+- change visualization;
+- optional spectral evidence;
+- quality mask;
+- timeline.
 
-   # Or run dashboard directly
-   npm run dev:dashboard
-   ```
+### Provenance
+- source scene IDs;
+- acquisition dates;
+- sensor;
+- CRS;
+- preprocessing version;
+- model version;
+- embedding/index version.
 
-4. Open your browser and navigate to:
-   * **Dashboard Application:** [http://localhost:3000](http://localhost:3000) (or port displayed in terminal)
-   * **Landing Page:** [http://localhost:3001](http://localhost:3001)
+### Actions
+- Confirm;
+- Reject;
+- Mark uncertain;
+- Add note;
+- Export evidence package.
 
 ---
 
-## 🛡️ License
+## 18. Analyst Feedback
 
-This project is licensed under the **MIT License**.
+```text
+Query
+ ↓
+Initial retrieval
+ ↓
+Analyst labels:
+Relevant / Irrelevant / Uncertain
+ ↓
+Reranker
+ ↓
+Improved ranking
+```
+
+Feedback should not silently modify the foundation model and must remain auditable.
+
+---
+
+## 19. Incremental Ingestion
+
+```text
+New GeoTIFF/COG
+      ↓
+Validate
+      ↓
+Metadata extraction
+      ↓
+Quality assessment
+      ↓
+Preprocess / tile
+      ↓
++----------------------+
+|                      |
+v                      v
+RemoteCLIP embedding  Prithvi features
+|                      |
++----------+-----------+
+           ↓
+      Update indexes
+           ↓
+ Available for search
+```
+
+No complete index rebuild should be required for every new acquisition.
+
+---
+
+## 20. Data/Storage Layout
+
+```text
+/data
+  /raw/sentinel2/AOI_01
+  /raw/sentinel2/AOI_02
+
+  /analysis_ready/AOI_01/YYYY
+  /tiles/AOI_01
+
+  /metadata
+    scenes.parquet
+    tiles.parquet
+
+  /embeddings
+    /remoteclip
+    /prithvi
+
+  /indexes
+    /remoteclip
+    /prithvi
+
+  /models
+    /remoteclip
+    /prithvi
+    /custom
+
+  /results
+  /provenance
+  /feedback
+```
+
+---
+
+## 21. Technology Stack
+
+### Data
+- Sentinel-2 L2A
+- GeoTIFF / COG
+- GDAL
+- Rasterio
+- STAC-compatible metadata where available
+
+### ML
+- PyTorch
+- RemoteCLIP
+- Prithvi-EO-2.0
+- TerraTorch for Prithvi integration/fine-tuning where required
+
+### Retrieval
+- FAISS or Qdrant
+- cosine/dot-product similarity
+
+### Geospatial
+- GDAL
+- Rasterio
+- GeoPandas
+- Shapely
+- pyproj
+
+### Backend
+- Python
+- FastAPI
+
+### Frontend
+- React/Next.js or equivalent
+- MapLibre GL JS/OpenLayers
+- timeline and before/after viewer
+
+### Database
+- PostgreSQL + PostGIS
+
+### Deployment
+- Docker/Docker Compose
+- local model weights
+- local vector database
+- local API/UI
+
+---
+
+## 22. Functional Requirements
+
+**FR-01:** Ingest GeoTIFF/COG while preserving geospatial metadata.
+
+**FR-02:** Generate standardized six-band Prithvi-compatible products.
+
+**FR-03:** Perform quality assessment/masking.
+
+**FR-04:** Generate and index semantic embeddings.
+
+**FR-05:** Support natural-language retrieval.
+
+**FR-06:** Support image-to-image retrieval.
+
+**FR-07:** Support spatial, temporal and sensor/source filters.
+
+**FR-08:** Analyse multiple observations for a candidate.
+
+**FR-09:** Support the initial change categories.
+
+**FR-10:** Estimate earliest usable observation supporting a change.
+
+**FR-11:** Suppress specified pseudo-change factors.
+
+**FR-12:** Produce confidence/uncertainty.
+
+**FR-13:** Preserve source and processing provenance.
+
+**FR-14:** Support analyst confirmation/rejection/uncertainty.
+
+**FR-15:** Support incremental ingestion.
+
+**FR-16:** Operate locally without external runtime APIs.
+
+---
+
+## 23. Non-Functional Requirements
+
+- **Reproducibility:** versions/configuration must be recorded.
+- **Explainability:** high-confidence changes must expose evidence.
+- **Traceability:** every result maps to source scenes.
+- **Scalability:** scene/tile growth must not require architectural redesign.
+- **Offline operation:** no external inference/API dependency during evaluation.
+- **Security:** imagery is not transmitted externally.
+- **Fault isolation:** failed scenes can be reprocessed independently.
+
+---
+
+## 24. Evaluation
+
+### Semantic retrieval
+Measure:
+- Recall@1;
+- Recall@5;
+- Recall@10;
+- Mean Recall;
+- mAP where appropriate.
+
+Compare:
+1. RemoteCLIP zero-shot;
+2. India-adapted RemoteCLIP.
+
+### Similar-site discovery
+Measure relevance of retrieved sites.
+
+### Change detection
+Measure:
+- Precision;
+- Recall;
+- F1;
+- IoU;
+- false-alarm rate.
+
+### Change classification
+Measure:
+- per-class precision/recall;
+- macro F1;
+- confusion matrix.
+
+### Earliest evidence
+Compare predicted earliest supporting observation with labelled ground truth.
+
+### Robustness
+Evaluate under:
+- seasonal differences;
+- cloud contamination;
+- haze;
+- illumination variation;
+- viewing-angle variation;
+- registration perturbation;
+- domain/sensor variation where available.
+
+### System metrics
+Record:
+- scene/tile count;
+- index build time;
+- incremental ingestion time;
+- query latency;
+- model inference time;
+- storage footprint;
+- hardware used.
+
+---
+
+## 25. Baselines
+
+### Baseline A
+Metadata-only retrieval.
+
+### Baseline B
+RemoteCLIP zero-shot retrieval.
+
+### Baseline C
+Pixel/feature-difference change detection.
+
+### Baseline D
+Pretrained change-detection model without evidence fusion.
+
+### Proposed system
+RemoteCLIP + Prithvi + temporal semantic reasoning + evidence fusion + uncertainty.
+
+---
+
+## 26. Ablation Studies
+
+Test the effect of:
+1. India-domain adaptation;
+2. temporal reasoning;
+3. quality masks;
+4. registration handling;
+5. spectral evidence;
+6. evidence fusion;
+7. confidence calibration;
+8. RemoteCLIP alone;
+9. Prithvi alone;
+10. hybrid architecture.
+
+The goal is to prove which components improve retrieval and reduce false alarms.
+
+---
+
+## 27. Research Contribution
+
+Do not claim novelty simply from using RemoteCLIP or Prithvi.
+
+The research contribution should focus on the adaptation/inference problem:
+
+> **India-domain semantic EO adaptation combined with multi-temporal semantic reasoning and uncertainty-aware evidence fusion for reliable change discovery under acquisition-induced pseudo-change.**
+
+Potential contributions:
+- Indian-domain semantic adaptation;
+- semantic temporal-state modelling;
+- evidence-aware change inference;
+- confidence-aware analyst workflow;
+- unified semantic discovery + temporal intelligence.
+
+The exact novelty claim must be finalized after a systematic literature review.
+
+---
+
+## 28. End-to-End Example
+
+### Query
+> “Find locations with newly constructed facilities near major roads.”
+
+### Pipeline
+
+```text
+Natural-language query
+        ↓
+RemoteCLIP semantic retrieval
+        ↓
+Top candidate locations
+        ↓
+Spatial/temporal metadata filtering
+        ↓
+Chronological observations
+        ↓
+Quality + registration processing
+        ↓
+Prithvi EO features
+        ↓
+Semantic temporal reasoning
+        ↓
+Construction/change classification
+        ↓
+Evidence fusion
+        ↓
+Confidence
+        ↓
+Analyst review
+```
+
+Example temporal interpretation:
+
+```text
+2022: Open land
+2023: Open land
+2024: Construction activity
+2025: Permanent structure
+2026: Permanent structure
+```
+
+Result:
+
+```text
+Change: New construction
+Earliest supporting observation: 2024
+Confidence: High
+Evidence: multi-date semantic + spectral + temporal agreement
+```
+
+---
+
+## 29. Failure Handling
+
+### Cloud-contaminated observation
+Mask affected areas and reduce usable evidence.
+
+### Poor registration
+Flag/exclude observation or reduce confidence.
+
+### Seasonal variation
+Use multi-date evidence and reduce confidence where ambiguity remains.
+
+### Sensor/domain mismatch
+Use sensor metadata and compatible normalization; reduce confidence if unsupported.
+
+### Insufficient observations
+Return “insufficient evidence” rather than forcing a decision.
+
+### Conflicting evidence
+Return “ambiguous” and expose the evidence to the analyst.
+
+---
+
+## 30. Security and Sovereignty
+
+- imagery remains on-premises;
+- model weights are staged locally;
+- no external inference API;
+- no external image upload;
+- network can be disabled after staging;
+- processing logs should avoid unnecessary sensitive imagery content;
+- access should be role-controlled in production;
+- exported results must retain provenance.
+
+---
+
+## 31. Model Provenance
+
+For each model store:
+
+```text
+model_name
+model_version
+source
+license
+checkpoint_hash
+input_bands
+input_resolution
+normalization
+fine_tuning_dataset
+fine_tuning_version
+inference_config
+```
+
+All pretrained public models must have declared origin/licence and packaged weights for offline use.
+
+---
+
+## 32. Data Provenance
+
+For each scene:
+
+```text
+scene_id
+source
+product_id
+sensor
+acquisition_datetime
+processing_level
+CRS
+bounds
+resolution
+band_list
+quality_metadata
+```
+
+For each derived tile:
+
+```text
+parent_scene_id
+tile_id
+window
+transform
+CRS
+preprocessing_version
+quality_mask_version
+```
+
+---
+
+## 33. MVP
+
+The minimum demonstration shall include:
+
+1. Sentinel-2 L2A data from multiple Indian AOIs.
+2. Multi-year temporal observations.
+3. Standardized six-band GeoTIFF/COG processing.
+4. RemoteCLIP semantic search.
+5. Image-to-image retrieval.
+6. Prithvi-EO-2.0 feature extraction.
+7. Multi-temporal change analysis for selected categories.
+8. Quality masking and registration.
+9. Evidence fusion.
+10. Confidence score.
+11. Before/after/timeline UI.
+12. Provenance.
+13. Incremental ingestion.
+14. Offline local inference.
+
+---
+
+## 34. Implementation Phases
+
+### Phase 1 — Data Foundation
+AOIs → Sentinel-2 L2A → staging → GeoTIFF/COG → metadata → quality masks.
+
+### Phase 2 — Semantic Retrieval
+RemoteCLIP → RGB tiles → embeddings → vector index → text/image retrieval → Indian benchmark.
+
+### Phase 3 — EO Representation
+Prithvi-EO-2.0-300M-TL → six-band standardization → temporal features.
+
+### Phase 4 — Temporal Intelligence
+Custom temporal head → change localization → classification → earliest evidence.
+
+### Phase 5 — Reliability
+Evidence fusion → uncertainty → false-alarm evaluation → ablations.
+
+### Phase 6 — Analyst Workflow
+Map → timeline → before/after → evidence → provenance → feedback.
+
+### Phase 7 — Offline Deployment
+Package models → containerize → disable network → benchmark latency/storage/hardware.
+
+---
+
+## 35. Final Architecture Decision
+
+The division of responsibility shall be:
+
+```text
+REMOTECLIP
+    ↓
+Language ↔ imagery semantic alignment
+    ↓
+PRITHVI-EO-2.0
+    ↓
+Multispectral + temporal EO representation
+    ↓
+OUR TEMPORAL MODEL
+    ↓
+Semantic state transitions
+    ↓
+OUR EVIDENCE FUSION
+    ↓
+Pseudo-change suppression
+    ↓
+OUR CONFIDENCE LAYER
+    ↓
+Evidence-ranked analyst review
+```
+
+One model must not be expected to solve retrieval, EO representation, temporal reasoning and uncertainty simultaneously.
+
+---
+
+## 36. Critical Compatibility Note
+
+The documented Prithvi-EO-2.0 six-band HLS configuration uses:
+
+```text
+B02, B03, B04, B05, B06, B07
+```
+
+Therefore, the Sentinel-2 preprocessing pipeline must explicitly map these bands to the Prithvi-compatible six-band representation.
+
+The commonly used Sentinel-2 combination:
+
+```text
+B02, B03, B04, B08, B11, B12
+```
+
+must not be presented as the exact six-band Prithvi input.
+
+---
+
+## 37. Product Positioning
+
+EDGE-GEOINT is not merely:
+- a satellite image search engine; or
+- a change-detection model.
+
+It is an integrated intelligence workflow:
+
+> **Semantic discovery → candidate retrieval → multi-temporal semantic reasoning → pseudo-change suppression → confidence estimation → analyst validation → provenance-preserving intelligence.**
+
+### Central research hypothesis
+
+> **Reliable satellite-image intelligence can be improved by combining remote-sensing foundation-model representations with temporal semantic reasoning and uncertainty-aware evidence fusion, rather than relying on metadata search or pixel-by-pixel change alone.**
+
+---
+
+## 38. Technical References
+
+- SIH Problem Statement: Semantic Retrieval and Multi-Temporal Change Analysis of Satellite Imagery.
+- RemoteCLIP: A Vision Language Foundation Model for Remote Sensing.
+- Prithvi-EO-2.0: Earth Observation Foundation Model.
+- Recent foundation-model-driven semantic change detection research.
+- Sentinel-2 Level-2A product documentation.
+
+All final experiments must record exact model/checkpoint versions, dataset versions, preprocessing configurations and licenses.
